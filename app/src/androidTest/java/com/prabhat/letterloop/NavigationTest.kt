@@ -164,8 +164,10 @@ class NavigationTest {
         assertGone(TestTags.GAME_SCREEN)
     }
 
-    private fun levelTitle(): String =
-        rule.onNodeWithTag(TestTags.LEVEL_TITLE).fetchSemanticsNode().config[SemanticsProperties.Text].first().text
+    // While the next level slides in, both levels are briefly on screen, so read every title.
+    private fun levelTitles(): List<String> =
+        rule.onAllNodesWithTag(TestTags.LEVEL_TITLE).fetchSemanticsNodes()
+            .map { it.config[SemanticsProperties.Text].first().text }
 
     /** Swipes the level's grid words until the complete card shows, then waits for the next level. */
     private fun solveLevel(level: Level) {
@@ -175,8 +177,8 @@ class NavigationTest {
         }
         assertShown(TestTags.LEVEL_COMPLETE_CARD)
         // The ViewModel's 1.5 s celebration runs in real time on the device; poll until it is done.
-        rule.waitUntil(5_000) { levelTitle() == "Level ${level.id + 1}" }
-        rule.waitForTag(TestTags.wheelLetter(0))
+        rule.waitUntil(5_000) { "Level ${level.id + 1}" in levelTitles() }
+        rule.waitForIdle()
     }
 
     @Test
@@ -186,10 +188,10 @@ class NavigationTest {
         openLevel1()
 
         solveLevel(levels[0])
-        assertEquals("Level 2", levelTitle())
+        assertEquals(listOf("Level 2"), levelTitles())
         solveLevel(levels[1])
         solveLevel(levels[2])
-        assertEquals("Level 4", levelTitle())
+        assertEquals(listOf("Level 4"), levelTitles())
 
         // However many levels were played, the stack is still Home → LevelSelect → Game.
         pressBack()

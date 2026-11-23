@@ -3,6 +3,11 @@
 // finished word, through onWordSubmitted, never about individual touch moves.
 package com.prabhat.letterloop.ui.game
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -15,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -23,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -172,42 +179,60 @@ fun LetterWheel(
             }
         }
 
+        val keyPx = with(density) { keySize.toPx() }
+        // Each letter keeps an identity across a shuffle ("O#0", "O#1" for a repeated O), so key()
+        // moves the same composable to its new index and its position animates there: the
+        // letters glide instead of jumping. A fresh screen starts at the targets, so nothing moves.
+        val identities = letterIdentities(letters)
         letters.forEachIndexed { index, letter ->
-            val keyPx = with(density) { keySize.toPx() }
-            LetterKey(
-                letter = letter,
-                selected = index in selection,
-                size = keySize,
-                scale = scale,
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            (centers[index].x - keyPx / 2f).roundToInt(),
-                            (centers[index].y - keyPx / 2f).roundToInt(),
-                        )
-                    }
-                    .testTag(TestTags.wheelLetter(index)),
-            )
+            key(identities[index]) {
+                val position by animateOffsetAsState(centers[index], tween(350), label = "letterGlide")
+                LetterKey(
+                    letter = letter,
+                    selected = index in selection,
+                    size = keySize,
+                    scale = scale,
+                    modifier = Modifier
+                        // Read in the layout phase, so the glide moves the key without recomposing.
+                        .offset { IntOffset((position.x - keyPx / 2f).roundToInt(), (position.y - keyPx / 2f).roundToInt()) }
+                        .testTag(TestTags.wheelLetter(index)),
+                )
+            }
         }
     }
 }
+
+/** A stable name for each wheel letter: the character plus which copy of it this is. */
+private fun letterIdentities(letters: String): List<String> =
+    letters.mapIndexed { i, ch -> "$ch#${letters.take(i).count { it == ch }}" }
 
 @Composable
 private fun LetterKey(letter: Char, selected: Boolean, size: Dp, scale: Float, modifier: Modifier) {
     // Sizes in dp converted to sp, so the letter always fits its 64dp circle whatever the
     // phone's font-size setting (Decision log #28).
     val fontSize = with(LocalDensity.current) { (36.dp * scale).toSp() }
+    // Touched: spring up to 1.12 and fade the marigold circle in; released: settle back.
+    val keyScale by animateFloatAsState(
+        if (selected) 1.12f else 1f,
+        spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
+        label = "keyScale",
+    )
+    val circleAlpha by animateFloatAsState(if (selected) 1f else 0f, tween(120), label = "keyCircle")
     Box(
         modifier
             .size(size)
-            .then(
-                if (selected) Modifier.keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 4.dp * scale, CircleShape)
-                else Modifier,
-            )
+            // Both values are read inside graphicsLayer, so the animation only redraws this key.
+            .graphicsLayer { scaleX = keyScale; scaleY = keyScale }
             // Merge so tests can read the letter from the tagged box.
             .semantics(mergeDescendants = true) {},
         contentAlignment = Alignment.Center,
     ) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { alpha = circleAlpha }
+                .keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 4.dp * scale, CircleShape),
+        )
         Text(
             text = letter.toString(),
             color = if (selected) LoopColors.OnMarigold else LoopColors.Cream,

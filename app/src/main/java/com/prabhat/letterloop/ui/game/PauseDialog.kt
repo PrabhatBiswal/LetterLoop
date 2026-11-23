@@ -1,7 +1,16 @@
-// The Pause dialog's content. It is a Navigation dialog destination, so back, rotation and process
-// death are handled by the back stack; this file only draws the card and reports button taps.
+// The Pause dialog's content. It is a Navigation dialog destination, so rotation and process death
+// are handled by the back stack; this file draws the card, scales and fades it in and out, and
+// reports which button was tapped once the exit animation has finished.
 package com.prabhat.letterloop.ui.game
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
@@ -41,72 +55,110 @@ fun PauseDialog(state: GameUiState, onResume: () -> Unit, onLevels: () -> Unit, 
     val window = (LocalView.current.parent as? DialogWindowProvider)?.window
     SideEffect { window?.setDimAmount(0f) }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(LoopColors.Scrim)
-            .safeDrawingPadding()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        val shape = RoundedCornerShape(28.dp)
-        Column(
+    // Starts hidden and immediately targets visible, so the dialog animates in.
+    val visibility = remember { MutableTransitionState(false).apply { targetState = true } }
+    // What to do once the exit animation ends: pop back to the game, Level Select or Home.
+    var afterExit by remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun close(action: () -> Unit) {
+        afterExit = action
+        visibility.targetState = false
+    }
+    LaunchedEffect(visibility.isIdle, visibility.currentState) {
+        if (visibility.isIdle && !visibility.currentState) afterExit?.invoke()
+    }
+    // Back resumes the game like the Resume button, so it gets the same exit animation. Without
+    // this the dialog destination would still close on back, just without animating.
+    BackHandler(enabled = visibility.targetState) { close(onResume) }
+
+    AnimatedVisibility(visibility, enter = fadeIn(tween(180)), exit = fadeOut(tween(160))) {
+        Box(
             Modifier
-                .widthIn(max = 420.dp)
-                .fillMaxWidth()
-                .background(LoopColors.Surface, shape)
-                .border(1.5.dp, LoopColors.Outline, shape)
-                // Scrolls only if a very short landscape screen cannot fit the card.
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp)
-                .testTag(TestTags.PAUSE_DIALOG),
+                .fillMaxSize()
+                .background(LoopColors.Scrim)
+                .safeDrawingPadding()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Text("Paused", fontSize = 36.sp, fontWeight = FontWeight.SemiBold)
-            val game = state.game
-            if (game != null) {
-                Text(
-                    "Level ${state.levelId} · ${game.foundWords.size} of ${game.level.words.size} words found",
-                    fontSize = 16.sp,
-                    color = LoopColors.Muted,
-                )
-            }
-            Spacer(Modifier.height(20.dp))
-            PrimaryButton(
-                text = "Resume",
-                onClick = onResume,
-                height = 60.dp,
-                icon = R.drawable.ic_play,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(TestTags.RESUME_BUTTON),
-            )
-            Spacer(Modifier.height(12.dp))
-            // Side by side, so the card still fits a short landscape screen.
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecondaryButton(
-                    text = "Levels",
-                    onClick = onLevels,
-                    icon = R.drawable.ic_levels,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(TestTags.PAUSE_LEVELS_BUTTON),
-                )
-                SecondaryButton(
-                    text = "Home",
-                    onClick = onHome,
-                    icon = R.drawable.ic_home,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag(TestTags.PAUSE_HOME_BUTTON),
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Your progress is saved.",
-                fontSize = 14.sp,
-                color = LoopColors.Muted,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+            PauseCard(
+                state = state,
+                onResume = { close(onResume) },
+                onLevels = { close(onLevels) },
+                onHome = { close(onHome) },
+                // The card scales as well as fading with the scrim.
+                modifier = Modifier.animateEnterExit(
+                    enter = scaleIn(tween(220), initialScale = 0.88f) + fadeIn(tween(180)),
+                    exit = scaleOut(tween(160), targetScale = 0.92f) + fadeOut(tween(140)),
+                ),
             )
         }
+    }
+}
+
+@Composable
+private fun PauseCard(
+    state: GameUiState,
+    onResume: () -> Unit,
+    onLevels: () -> Unit,
+    onHome: () -> Unit,
+    modifier: Modifier,
+) {
+    val shape = RoundedCornerShape(28.dp)
+    Column(
+        modifier
+            .widthIn(max = 420.dp)
+            .fillMaxWidth()
+            .background(LoopColors.Surface, shape)
+            .border(1.5.dp, LoopColors.Outline, shape)
+            // Scrolls only if a very short landscape screen cannot fit the card.
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+            .testTag(TestTags.PAUSE_DIALOG),
+    ) {
+        Text("Paused", fontSize = 36.sp, fontWeight = FontWeight.SemiBold)
+        val game = state.game
+        if (game != null) {
+            Text(
+                "Level ${state.levelId} · ${game.foundWords.size} of ${game.level.words.size} words found",
+                fontSize = 16.sp,
+                color = LoopColors.Muted,
+            )
+        }
+        Spacer(Modifier.height(20.dp))
+        PrimaryButton(
+            text = "Resume",
+            onClick = onResume,
+            height = 60.dp,
+            icon = R.drawable.ic_play,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(TestTags.RESUME_BUTTON),
+        )
+        Spacer(Modifier.height(12.dp))
+        // Side by side, so the card still fits a short landscape screen.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SecondaryButton(
+                text = "Levels",
+                onClick = onLevels,
+                icon = R.drawable.ic_levels,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(TestTags.PAUSE_LEVELS_BUTTON),
+            )
+            SecondaryButton(
+                text = "Home",
+                onClick = onHome,
+                icon = R.drawable.ic_home,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(TestTags.PAUSE_HOME_BUTTON),
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Your progress is saved.",
+            fontSize = 14.sp,
+            color = LoopColors.Muted,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
     }
 }

@@ -1,9 +1,20 @@
 // The gameplay screen: top bar, crossword grid, word preview, letter wheel and its three buttons.
-// Portrait stacks the grid above the wheel; landscape puts them side by side. It draws GameUiState
-// and forwards user actions to GameViewModel; it holds no game rules.
+// Portrait stacks the grid above the wheel; landscape puts them side by side. It draws GameUiState,
+// plays the feedback animations, and forwards user actions to GameViewModel; it holds no game rules.
 package com.prabhat.letterloop.ui.game
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,21 +26,33 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -41,12 +64,15 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.prabhat.letterloop.R
+import com.prabhat.letterloop.game.PlacedWord
+import com.prabhat.letterloop.game.SubmitResult
 import com.prabhat.letterloop.ui.TestTags
 import com.prabhat.letterloop.ui.components.RoundIconButton
 import com.prabhat.letterloop.ui.components.loopRings
 import com.prabhat.letterloop.ui.theme.LoopColors
+import kotlinx.coroutines.delay
 
-/** The user actions the game screen can send. Plain function references to the ViewModel. */
+/** The user actions the game screen can send: function references to the ViewModel and nav. */
 private class GameActions(
     val onWordSubmitted: (String) -> Unit,
     val onPause: () -> Unit,
@@ -73,43 +99,102 @@ fun GameScreen(
         onStopOrDispose { viewModel.onScreenStopped() }
     }
 
+    // One-shot feedback (section 9 rules): play it, then report it shown, so a rotation afterwards
+    // does not replay it. Keyed on the id: a new word restarts this even mid-animation. The game
+    // state has already changed; this only decides how long the pill and tiles keep animating.
+    val haptics = LocalHapticFeedback.current
+    val feedback = state.feedback
+    LaunchedEffect(feedback?.id) {
+        if (feedback == null) return@LaunchedEffect
+        if (feedback.result == SubmitResult.GridWord) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        delay(feedbackMillis(feedback.result))
+        viewModel.onFeedbackShown(feedback.id)
+    }
+
+    // Saveable, so the bonus words sheet stays open across a rotation.
+    var showBonusWords by rememberSaveable { mutableStateOf(false) }
+    // Confetti plays once per completed level. Saveable, so rotating while the complete card is
+    // still showing (the all-done card stays until the player leaves) does not replay it.
+    var confettiDoneFor by rememberSaveable { mutableIntStateOf(0) }
+
     val actions = remember(viewModel, onPause, onBackToLevels) {
         GameActions(
             onWordSubmitted = viewModel::onWordSubmitted,
             onPause = onPause,
             onHint = viewModel::onHint,
             onShuffle = viewModel::onShuffle,
-            onBonus = {}, // The bonus words sheet arrives in M4.
+            onBonus = { showBonusWords = true },
             onBackToLevels = onBackToLevels,
         )
     }
-    GameContent(state, actions)
-}
 
-@Composable
-private fun GameContent(state: GameUiState, actions: GameActions) {
-    // The word being swiped right now, reported by the wheel. Short-lived UI state: it stays here
-    // and never goes to the ViewModel (Decision log #6).
-    var swipeWord by remember { mutableStateOf("") }
-
-    BoxWithConstraints(
+    Box(
         Modifier
             .fillMaxSize()
             .background(LoopColors.Ground)
             // The rings reach far beyond the wheel; keep them inside this screen.
             .clipToBounds()
-            .safeDrawingPadding()
             .testTag(TestTags.GAME_SCREEN),
+    ) {
+        // Next level: the new one slides in from the side. Within a level the content just updates.
+        AnimatedContent(
+            targetState = state,
+            contentKey = { it.levelId },
+            transitionSpec = {
+                (slideInHorizontally(tween(400)) { it } + fadeIn(tween(400))) togetherWith
+                    (slideOutHorizontally(tween(400)) { -it } + fadeOut(tween(300)))
+            },
+            label = "levelChange",
+        ) { levelState ->
+            GameLayout(levelState, actions)
+        }
+        if (state.phase != GamePhase.Playing && confettiDoneFor != state.levelId) {
+            val levelId = state.levelId
+            Confetti(seed = levelId, onFinished = { confettiDoneFor = levelId }, modifier = Modifier.fillMaxSize())
+        }
+    }
+
+    if (showBonusWords) {
+        BonusWordsSheet(state.game?.foundBonus.orEmpty(), onDismiss = { showBonusWords = false })
+    }
+}
+
+@Composable
+private fun GameLayout(state: GameUiState, actions: GameActions) {
+    // The word being swiped right now, reported by the wheel. Short-lived UI state: it stays here
+    // and never goes to the ViewModel (Decision log #6).
+    var swipeWord by remember { mutableStateOf("") }
+    val flight = remember { FlightPath() }
+
+    // What the grid should animate for the current feedback, if anything.
+    val feedback = state.feedback
+    val words = state.game?.level?.words.orEmpty()
+    val popWord: PlacedWord? = words.firstOrNull { feedback?.result == SubmitResult.GridWord && it.word == feedback.word }
+    val pulse: Pair<Long, PlacedWord>? = words
+        .firstOrNull { feedback?.result == SubmitResult.AlreadyFound && it.word == feedback.word }
+        ?.let { feedback!!.id to it }
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .safeDrawingPadding(),
     ) {
         // Read once here: Row and Column scopes below cannot see these sizes implicitly.
         val screenWidth = maxWidth
         val screenHeight = maxHeight
         if (screenWidth > screenHeight) {
-            // Landscape: grid on the left, wheel on the right; 44dp side padding for cut-outs.
+            // Landscape: grid on the left, wheel on the right. The design (a 844dp-wide landscape
+            // phone) has 44dp side padding for cut-outs and a 320dp wheel column; both scale down
+            // on smaller screens so the grid keeps enough room (a 640dp-wide phone crashed before).
+            val sidePadding = 44.dp * (screenWidth / 844.dp).coerceAtMost(1f)
+            val usableWidth = screenWidth - sidePadding * 2 - 24.dp
+            val wheelColumnWidth = minOf(320.dp, usableWidth * 0.5f)
+            // Keeps the column at least 1.3x the wheel, so its corner buttons clear the circle.
+            val landscapeWheel = minOf(240.dp, screenHeight - 72.dp, wheelColumnWidth / 1.3f)
             Row(
                 Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 44.dp, vertical = 8.dp),
+                    .padding(horizontal = sidePadding, vertical = 8.dp),
             ) {
                 BoxWithConstraints(
                     Modifier
@@ -122,23 +207,26 @@ private fun GameContent(state: GameUiState, actions: GameActions) {
                     // up with the grid's edges (with a minimum so its contents always fit).
                     val cell = game?.let { gridCellSize(it.level, maxWidth, maxHeight - 68.dp) }
                     val columnWidth = maxWidth
-                    val barWidth = if (game != null && cell != null) gridWidth(game.level, cell) else columnWidth
+                    val gridWidth = if (game != null && cell != null) gridWidth(game.level, cell) else columnWidth
+                    // As wide as the grid, but at least 260dp when the column allows it.
+                    val barWidth = maxOf(gridWidth, minOf(260.dp, columnWidth))
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        GameTopBar(state, actions.onPause, Modifier.width(barWidth.coerceIn(260.dp, columnWidth)))
+                        GameTopBar(state, actions.onPause, Modifier.width(barWidth))
                         Spacer(Modifier.height(12.dp))
-                        if (game != null && cell != null) CrosswordGrid(game, cell)
+                        if (game != null && cell != null) CrosswordGrid(game, cell, popWord = popWord, pulse = pulse)
                     }
                 }
                 Spacer(Modifier.width(24.dp))
                 // zIndex -1 draws this column first, so its background rings pass under the grid.
                 WheelSection(
                     state = state,
-                    wheelSize = minOf(240.dp, screenHeight - 72.dp),
+                    wheelSize = landscapeWheel,
                     swipeWord = swipeWord,
                     onSwipeWordChange = { swipeWord = it },
+                    flight = flight,
                     actions = actions,
                     modifier = Modifier
-                        .width(320.dp)
+                        .width(wheelColumnWidth)
                         .fillMaxHeight()
                         .zIndex(-1f),
                 )
@@ -161,7 +249,9 @@ private fun GameContent(state: GameUiState, actions: GameActions) {
                 ) {
                     // While loading, the top bar already shows the level number, so the screen is
                     // never blank; the grid appears as soon as the level is parsed.
-                    state.game?.let { CrosswordGrid(it, gridCellSize(it.level, maxWidth, maxHeight)) }
+                    state.game?.let {
+                        CrosswordGrid(it, gridCellSize(it.level, maxWidth, maxHeight), popWord = popWord, pulse = pulse)
+                    }
                 }
                 WheelSection(
                     state = state,
@@ -169,6 +259,7 @@ private fun GameContent(state: GameUiState, actions: GameActions) {
                     wheelSize = minOf(280.dp, screenWidth - 120.dp, screenHeight * 0.4f),
                     swipeWord = swipeWord,
                     onSwipeWordChange = { swipeWord = it },
+                    flight = flight,
                     actions = actions,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -187,59 +278,74 @@ private fun WheelSection(
     wheelSize: Dp,
     swipeWord: String,
     onSwipeWordChange: (String) -> Unit,
+    flight: FlightPath,
     actions: GameActions,
     modifier: Modifier,
 ) {
-    Column(modifier, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        if (state.phase == GamePhase.Playing) {
-            WordPreview(swipeWord)
-            Spacer(Modifier.height(8.dp))
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(wheelSize),
-            ) {
-                LetterWheel(
-                    letters = state.letters,
-                    enabled = state.game != null,
-                    onWordSubmitted = actions.onWordSubmitted,
-                    onSelectionChange = onSwipeWordChange,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(wheelSize)
-                        .loopRings()
-                        .testTag(TestTags.WHEEL),
-                )
-                RoundIconButton(
-                    icon = R.drawable.ic_hint,
-                    contentDescription = "Hint",
-                    onClick = actions.onHint,
-                    size = 52.dp,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .testTag(TestTags.HINT_BUTTON),
-                )
-                RoundIconButton(
-                    icon = R.drawable.ic_shuffle,
-                    contentDescription = "Shuffle letters",
-                    onClick = actions.onShuffle,
-                    size = 52.dp,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .testTag(TestTags.SHUFFLE_BUTTON),
-                )
-                BonusButton(
-                    count = state.game?.foundBonus?.size ?: 0,
-                    onClick = actions.onBonus,
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                )
+    // Level complete: the wheel and pill fade out completely and the card slides up in their place.
+    AnimatedContent(
+        targetState = state.phase == GamePhase.Playing,
+        transitionSpec = {
+            (fadeIn(tween(250, delayMillis = 150)) + slideInVertically(tween(450)) { it / 3 }) togetherWith
+                fadeOut(tween(200))
+        },
+        contentAlignment = Alignment.Center,
+        label = "wheelOrCard",
+        modifier = modifier,
+    ) { playing ->
+        if (playing) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                WordPreview(swipeWord, state.feedback, flight)
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(wheelSize),
+                ) {
+                    LetterWheel(
+                        letters = state.letters,
+                        enabled = state.game != null,
+                        onWordSubmitted = actions.onWordSubmitted,
+                        onSelectionChange = onSwipeWordChange,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(wheelSize)
+                            .loopRings()
+                            .testTag(TestTags.WHEEL),
+                    )
+                    RoundIconButton(
+                        icon = R.drawable.ic_hint,
+                        contentDescription = "Hint",
+                        onClick = actions.onHint,
+                        size = 52.dp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .testTag(TestTags.HINT_BUTTON),
+                    )
+                    RoundIconButton(
+                        icon = R.drawable.ic_shuffle,
+                        contentDescription = "Shuffle letters",
+                        onClick = actions.onShuffle,
+                        size = 52.dp,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .testTag(TestTags.SHUFFLE_BUTTON),
+                    )
+                    BonusButton(
+                        count = state.game?.foundBonus?.size ?: 0,
+                        onClick = actions.onBonus,
+                        flight = flight,
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                    )
+                }
             }
         } else {
-            // The card takes the place of the preview and wheel; the grid stays fully revealed.
+            // At least the space the pill and wheel used, but free to grow: on a small screen the
+            // card (two-line title, or the "Back to levels" button) can be taller than the wheel.
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(wheelSize + 56.dp),
+                    .heightIn(min = wheelSize + 56.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 LevelCompleteCard(state, actions.onBackToLevels)
@@ -249,8 +355,27 @@ private fun WheelSection(
 }
 
 @Composable
-private fun BonusButton(count: Int, onClick: () -> Unit, modifier: Modifier) {
-    Box(modifier.testTag(TestTags.BONUS_BUTTON)) {
+private fun BonusButton(count: Int, onClick: () -> Unit, flight: FlightPath, modifier: Modifier) {
+    // The badge shows `shownCount`, which catches up with `count` as the teal pill arrives. It
+    // starts at the current count, so a re-created screen neither bumps nor ticks.
+    var shownCount by remember { mutableIntStateOf(count) }
+    val bump = remember { Animatable(1f) }
+    LaunchedEffect(count) {
+        if (count > shownCount) {
+            delay(420) // the pill's flight time
+            shownCount = count
+            bump.animateTo(1.22f, tween(110))
+            bump.animateTo(1f, spring(dampingRatio = 0.4f))
+        } else {
+            shownCount = count
+        }
+    }
+    Box(
+        modifier
+            .onGloballyPositioned { flight.bonusButton = it.boundsInRoot().center }
+            .graphicsLayer { scaleX = bump.value; scaleY = bump.value }
+            .testTag(TestTags.BONUS_BUTTON),
+    ) {
         RoundIconButton(
             icon = R.drawable.ic_star,
             contentDescription = "Bonus words, $count found",
@@ -258,17 +383,64 @@ private fun BonusButton(count: Int, onClick: () -> Unit, modifier: Modifier) {
             size = 52.dp,
             tint = LoopColors.Teal,
         )
-        // The teal count badge, sitting on the button's top-right edge.
-        Box(
+        CountBadge(
+            shownCount,
             Modifier
                 .align(Alignment.TopEnd)
-                .size(22.dp)
-                .background(LoopColors.Teal, CircleShape)
-                .testTag(TestTags.BONUS_COUNT)
-                .semantics(mergeDescendants = true) {},
-            contentAlignment = Alignment.Center,
+                .testTag(TestTags.BONUS_COUNT),
+        )
+    }
+}
+
+/** The teal count badge; the number ticks up with a short slide. */
+@Composable
+private fun CountBadge(count: Int, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(22.dp)
+            .background(LoopColors.Teal, CircleShape)
+            .semantics(mergeDescendants = true) {},
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = count,
+            transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
+            label = "badgeCount",
+        ) { value ->
+            Text("$value", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LoopColors.OnTeal)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BonusWordsSheet(words: Collection<String>, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = LoopColors.Surface,
+        scrimColor = LoopColors.Scrim,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = LoopColors.Outline) },
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
         ) {
-            Text("$count", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = LoopColors.OnTeal)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Bonus words", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.width(10.dp))
+                CountBadge(words.size)
+            }
+            Spacer(Modifier.height(16.dp))
+            if (words.isEmpty()) {
+                Text(
+                    "None yet. Real words the letters spell that are not in the grid count as bonus words.",
+                    fontSize = 16.sp,
+                    color = LoopColors.Muted,
+                )
+            } else {
+                BonusChips(words)
+            }
         }
     }
 }

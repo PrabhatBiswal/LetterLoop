@@ -2,6 +2,9 @@
 // The groups come from each level's letter count in the data, not from hard-coded ranges.
 package com.prabhat.letterloop.ui.levels
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,7 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +40,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -49,7 +55,10 @@ import com.prabhat.letterloop.R
 import com.prabhat.letterloop.ui.TestTags
 import com.prabhat.letterloop.ui.components.RoundIconButton
 import com.prabhat.letterloop.ui.components.keycap
+import com.prabhat.letterloop.ui.components.rememberPressScale
 import com.prabhat.letterloop.ui.theme.LoopColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LevelSelectScreen(
@@ -107,8 +116,9 @@ fun LevelSelectScreen(
                 items(tiles, key = { it.id }) { tile ->
                     LevelTileButton(
                         tile = tile,
-                        // Locked levels do nothing (M4 adds a small shake).
-                        onClick = { if (tile.status != LevelStatus.Locked) onLevelClick(tile.id) },
+                        // A small stagger: each tile appears 25ms after the one before it.
+                        appearDelayMillis = (tile.id - 1) * 25L,
+                        onOpen = { onLevelClick(tile.id) },
                     )
                 }
             }
@@ -127,7 +137,7 @@ fun LevelSelectScreen(
 }
 
 @Composable
-private fun LevelTileButton(tile: LevelTile, onClick: () -> Unit) {
+private fun LevelTileButton(tile: LevelTile, appearDelayMillis: Long, onOpen: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val look = when (tile.status) {
         LevelStatus.Completed -> Modifier.keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 5.dp, shape)
@@ -144,16 +154,50 @@ private fun LevelTileButton(tile: LevelTile, onClick: () -> Unit) {
         LevelStatus.Current -> "next to play"
         LevelStatus.Locked -> "locked"
     }
+
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(appearDelayMillis)
+        appear.animateTo(1f, tween(220))
+    }
+    // A locked level does nothing except a small sideways shake (section 8).
+    val shake = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressScale by rememberPressScale(interactionSource)
+
     Box(
         Modifier
             .fillMaxWidth()
             .height(72.dp)
+            // All animated values are read here, in the layer, so they only redraw the tile.
+            .graphicsLayer {
+                val grow = 0.85f + 0.15f * appear.value
+                alpha = appear.value
+                scaleX = grow * pressScale
+                scaleY = grow * pressScale
+                translationX = shake.value.dp.toPx()
+            }
             .then(look)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
-                onClick = onClick,
+                onClick = {
+                    if (tile.status == LevelStatus.Locked) {
+                        scope.launch {
+                            shake.animateTo(0f, keyframes {
+                                durationMillis = 300
+                                -8f at 50
+                                8f at 110
+                                -5f at 170
+                                3f at 230
+                            })
+                        }
+                    } else {
+                        onOpen()
+                    }
+                },
             )
             .semantics(mergeDescendants = true) { contentDescription = "Level ${tile.id}, $statusText" }
             .testTag(TestTags.levelTile(tile.id)),

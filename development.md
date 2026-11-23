@@ -551,7 +551,7 @@ milestone in that milestone, alongside the code they cover.
   `StateRestorationTest` on a device). Every item in section 11
   "Back stack" and "State" passes.
 
-- [ ] **M4 — Polish.** Theme, every animation in section 9, haptics, shuffle,
+- [x] **M4 — Polish.** Theme, every animation in section 9, haptics, shuffle,
   hint, bonus list, confetti.
   *Check:* every row of the animation table is visible on a device; every edge
   case in section 7 passes; rotation mid-level does not replay tile animations.
@@ -607,7 +607,7 @@ Back stack (R6):
 
 State (R7):
 
-- [ ] Rotate mid-level: found words, bonus count, hinted cells and wheel order are kept; no tile re-animates
+- [x] Rotate mid-level: found words, bonus count, hinted cells and wheel order are kept; no tile re-animates *(by hand; first frame after recreate captured: tiles already full size)*
 - [x] Rotate with Pause open: Pause is still open, game state intact *(by hand + StateRestorationTest)*
 - [x] Press Home, kill the process, reopen from recents: same level, same found words *(by hand; wheel order and hints also kept)*
 - [x] Same test with Pause open, and during the level-complete celebration *(by hand: restored to the complete card, then advanced)*
@@ -618,9 +618,9 @@ Gameplay (R1–R4, R13):
 
 - [ ] All 15 levels can be completed and each advances by itself
 - [ ] After level 15 the all-done screen shows and leads back to Level Select
-- [ ] Grid word, bonus word, already-found word and invalid word each look different
-- [ ] Every edge case in section 7 passes
-- [ ] Portrait and landscape both fit on a small phone (about 360×640dp) with nothing clipped
+- [x] Grid word, bonus word, already-found word and invalid word each look different *(mid-animation frames captured on device)*
+- [x] Every edge case in section 7 passes *(LetterWheelGestureTest, GameViewModelTest, GameEngineTest on device/JVM)*
+- [x] Portrait and landscape both fit on a small phone (about 360×640dp) with nothing clipped *(phone set to 720x1280 @ 320dpi; found and fixed a landscape crash)*
 
 Leaks (R6):
 
@@ -696,6 +696,19 @@ explain the choice out loud.
 | 46 | `NavigationTest` "back on Home" accepts the activity being stopped *or* destroyed | Since Android 12, back on a root launcher activity moves the task to the background instead of finishing it; both mean the player has left the app | Asserting DESTROYED (fails on Android 12+ by platform design) |
 | 47 | Background rings are drawn by `drawBehind` on the element they centre on (the logo's L, the wheel), with the wheel section at `zIndex(-1)` and `clipToBounds` on the screen root | No coordinates to measure or pass around; draw order alone puts the rings under everything else | Measuring the anchor with `onGloballyPositioned` and drawing in the root |
 | 48 | DataStore is created with `ReplaceFileCorruptionHandler { emptyPreferences() }` | A progress file that cannot be read at all starts empty instead of crashing on every launch | Default handler (throws `CorruptionException`) |
+| 49 | The screen owns the feedback timing: `LaunchedEffect(feedback.id)` waits a per-kind time (`feedbackMillis`), gives the success haptic for a grid word, then calls `onFeedbackShown(id)`. The pill and tiles animate from the same `feedback` value | One place decides how long feedback lives; keyed on the id, so a new word restarts it mid-animation and input is never blocked | A timer in the ViewModel (UI timing in the ViewModel) |
+| 50 | Each grid tile owns an `Animatable` that starts from the tile's current state; newly revealed tiles pop with a 60ms stagger by their index in the found word, using a spring with damping 0.5 for the overshoot | A tile already revealed when the screen is created (or re-created by a rotation) is simply there; only a real hidden → shown change animates. Verified by capturing the first frame after `recreate()` | One grid-wide animation driven from the ViewModel |
+| 51 | Wheel letters are `key()`-ed by identity (`"O#0"`, `"O#1"`) and their position uses `animateOffsetAsState` | After a shuffle the same composable moves to its new index, so letters glide; repeated letters still get distinct identities | Cross-fading the whole wheel |
+| 52 | The bonus flight reads the pill's and the bonus button's positions from plain fields (`FlightPath`) filled by `onGloballyPositioned`, inside `graphicsLayer` | The flight already redraws every frame, so the positions need no Compose state; the badge's number catches up and the button bumps when the pill arrives | Shared-element transitions (more machinery for one pill) |
+| 53 | Confetti: 90 pieces whose positions are a formula of time (fractions of the screen), driven by one `Animatable` read only inside `Canvas`, seeded by the level id; plays once per completed level (`rememberSaveable`) | No per-piece state or per-frame recomposition; looks the same at any size; rotating while the complete card is up does not replay it | A particle list updated every frame; a confetti library (not allowed) |
+| 54 | The level change is `AnimatedContent(targetState = state, contentKey = { it.levelId })` | The outgoing level keeps drawing its own last state while the new one slides in, and within a level the content just updates without animating | Keying on the level id alone (the old level would draw the new level's state) |
+| 55 | The praise banner is shown in the preview pill's place (a marigold "Great!" pill) | All word feedback comes from one spot above the wheel; nothing new to lay out on small screens | A separate floating banner over the grid |
+| 56 | Pause plays its exit animation before popping; back inside the dialog is a `BackHandler` that closes it like Resume | "Scale + fade in/out" needs time before the destination is popped. Without the handler, back would still close the dialog (Navigation's default), just without animating | Popping straight away (no exit animation) |
+| 57 | Press feedback is `rememberPressScale(interactionSource)` (0.96 while pressed, applied in `graphicsLayer`), with `indication = null` | The design's keycaps scale instead of showing Material's rectangular ripple; one helper for every button and level tile | Default ripple |
+| 58 | Haptics: `SegmentTick` when a letter is added, `Confirm` for a grid word, via Compose's `LocalHapticFeedback` | No `VIBRATE` permission needed; these are the two the brief asks for | `Vibrator` service calls |
+| 59 | Landscape sizes scale with the screen: side padding is 44dp × (width / 844dp), the wheel column is at most half the usable width, and the wheel at most column / 1.3 | The fixed 320dp column and 44dp padding left a 137dp grid column on a 640dp-wide phone, and a `coerceIn(260dp, 137dp)` crashed; scaling keeps the design's sizes on large phones and fits small ones | Fixed design sizes everywhere |
+| 60 | The complete card's area has a minimum height (the wheel's) rather than a fixed one, and the card scrolls as a last resort | A two-line title or the "Back to levels" button makes the card taller than the wheel on small screens | A fixed height (clipped the button) |
+| 61 | Device-test helpers read every "Level N" title and wait for idle before a swipe | While the next level slides in, both levels are on screen for about 400ms; the helpers wait it out instead of assuming one node | Disabling the level animation in tests |
 
 ---
 

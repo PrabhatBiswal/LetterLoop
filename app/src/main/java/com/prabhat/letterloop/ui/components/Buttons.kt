@@ -3,10 +3,13 @@
 package com.prabhat.letterloop.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -20,10 +23,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +37,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.prabhat.letterloop.ui.theme.LoopColors
+
+/**
+ * "Any button scales to about 0.96 while pressed" (section 9). Returns the animated scale for a
+ * button's interaction source; the caller applies it with graphicsLayer, so pressing only redraws.
+ */
+@Composable
+fun rememberPressScale(interactionSource: InteractionSource): State<Float> {
+    val pressed by interactionSource.collectIsPressedAsState()
+    return animateFloatAsState(if (pressed) 0.96f else 1f, label = "pressScale")
+}
 
 @Composable
 fun PrimaryButton(
@@ -63,15 +79,17 @@ private fun KeycapButton(
 ) {
     val depth = 6.dp
     val shape = RoundedCornerShape(20.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberPressScale(interactionSource)
     // [height] includes the edge: the face is shorter by `depth` and the edge fills the rest.
-    Box(modifier.height(height)) {
+    Box(modifier.height(height).graphicsLayer { scaleX = scale; scaleY = scale }) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .height(height - depth)
                 .keycap(face, edge, depth, shape)
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null,
                     role = Role.Button,
                     onClick = onClick,
@@ -99,13 +117,16 @@ fun RoundIconButton(
     tint: Color = LoopColors.Cream,
     enabled: Boolean = true,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale by rememberPressScale(interactionSource)
     Box(
         modifier
             .size(size)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .background(LoopColors.Surface, CircleShape)
             .border(1.5.dp, LoopColors.Outline, CircleShape)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 enabled = enabled,
                 role = Role.Button,

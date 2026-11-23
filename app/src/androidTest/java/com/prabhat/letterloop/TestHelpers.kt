@@ -43,6 +43,8 @@ fun ComposeTestRule.wheelLetters(): String =
  */
 fun ComposeTestRule.swipeWord(word: String) {
     waitForTag(TestTags.wheelLetter(0))
+    // Let any level-change or shuffle animation finish, so only one wheel is on screen.
+    waitForIdle()
     val letters = wheelLetters()
     val used = mutableSetOf<Int>()
     val indices = word.map { ch -> letters.indices.first { letters[it] == ch && it !in used }.also { used += it } }
