@@ -22,10 +22,14 @@ android {
 
     buildTypes {
         release {
+            // R8 code shrinking and resource optimisation, for all code including the app's own
+            // (AGP's default package scope "**"). Decision log #62.
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
+            // An assessment build, not a store build: signed with the debug key so the APK
+            // installs directly. A real release would use its own upload key.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

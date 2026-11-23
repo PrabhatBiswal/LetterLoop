@@ -558,7 +558,7 @@ milestone in that milestone, alongside the code they cover.
   The whole test suite from section 14 is still green after the polish work, and
   the M4 additions to `GameViewModelTest` (shuffle, hint, bonus list) are in.
 
-- [ ] **M5 — Release build.** Make the `release` build type installable by
+- [x] **M5 — Release build.** Make the `release` build type installable by
   signing it with the debug signing config (state this in the README; it is an
   assessment build, not a store build). Build it, install it, play it. Debug
   builds of Compose apps are visibly less smooth, so the APK handed in must be
@@ -709,6 +709,8 @@ explain the choice out loud.
 | 59 | Landscape sizes scale with the screen: side padding is 44dp × (width / 844dp), the wheel column is at most half the usable width, and the wheel at most column / 1.3 | The fixed 320dp column and 44dp padding left a 137dp grid column on a 640dp-wide phone, and a `coerceIn(260dp, 137dp)` crashed; scaling keeps the design's sizes on large phones and fits small ones | Fixed design sizes everywhere |
 | 60 | The complete card's area has a minimum height (the wheel's) rather than a fixed one, and the card scrolls as a last resort | A two-line title or the "Back to levels" button makes the card taller than the wheel on small screens | A fixed height (clipped the button) |
 | 61 | Device-test helpers read every "Level N" title and wait for idle before a swipe | While the next level slides in, both levels are on screen for about 400ms; the helpers wait it out instead of assuming one node | Disabling the level animation in tests |
+| 62 | R8 optimises all code in the release build: the template's `optimization.packageScope = androidx/kotlin/kotlinx` was removed, so AGP's default (`**`) applies | The template's scope left the app's own classes untouched, so "saved progress still works with code shrinking on" would not really test our `@Serializable` models and routes. With the full scope they are renamed and stripped (mapping shows e.g. `LevelProgress -> wl0`), and on device loading, saving, process death and cold start all still work. No extra keep rules were needed: kotlinx.serialization and Navigation ship their own | Keeping the template's library-only scope |
+| 63 | The release build type is signed with the debug signing config | An assessment build that must install straight from the APK; stated in the README. A store build would use its own upload key | Unsigned release APK (cannot be installed); committing a real keystore |
 
 ---
 
