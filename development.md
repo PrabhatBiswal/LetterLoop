@@ -531,7 +531,7 @@ milestone in that milestone, alongside the code they cover.
   `AppContainer`. Delete the template `Greeting` code and example tests.
   *Check:* project builds and launches to an empty themed screen.
 
-- [ ] **M1 — Engine and levels.** `game/` package, `levels.json` with all 15
+- [x] **M1 — Engine and levels.** `game/` package, `levels.json` with all 15
   levels, `AssetLevelRepository`, `LevelValidator`.
   *Check:* every M1 test in section 14 exists and is green (`GameEngineTest`,
   `LevelValidatorTest`, `LevelsValidationTest`, `LevelParsingTest`).
@@ -667,6 +667,13 @@ explain the choice out loud.
 | 17 | Window background set to Ground in `themes.xml` (the one colour duplicated outside `Color.kt`) | The window is drawn before Compose; without it the app flashes white on launch and on recreation | Leaving the template's light platform theme |
 | 18 | Fredoka bundled as four static TTFs (400/500/600/700); licence text in `licenses/Fredoka-OFL.txt` | minSdk is 24 and variable-font weight axes only work from API 26, so a single variable file would render every weight the same on older phones | One variable `Fredoka[wdth,wght].ttf`; downloadable Google Fonts (needs Play Services and network) |
 | 19 | Colour tokens live in `object LoopColors` | Keeps the exact token names from section 9 (`Surface`, `Outline`) without clashing with Compose's `Surface` composable | Top-level vals with renamed tokens |
+| 20 | `Level`, `PlacedWord`, `Direction` carry `@Serializable` directly; no separate JSON classes | kotlinx.serialization is plain Kotlin (no Android), so `game/` stays pure; one model instead of a DTO, a model and a mapper | JSON DTOs in `data/` mapped to game classes |
+| 21 | `SubmitResult` is a plain enum | The ViewModel already knows which word it submitted; the engine only has to say what kind of word it was | A sealed class carrying the word and its cells |
+| 22 | Words revealed entirely by crossings or hints are added to `foundWords` | The found counter, the saved progress and the `AlreadyFound` check all read one set, so they can never disagree | Working out "fully revealed" again everywhere it is needed |
+| 23 | Validator rule 7 also rejects negative coordinates and a grid that does not start at row 0 / column 0 | Grid size is computed as max + 1, so a negative or unused leading row would break the layout | Normalising coordinates when parsing (more code, hides authoring mistakes) |
+| 24 | Levels 1 and 4 are the brief's samples verbatim; the other levels store their wheel letters out of word order. Bonus lists are generous | The first wheel should not spell the answer clockwise. With no dictionary, every common word the letters make should count, or real words get rejected | Storing letters in answer order and shuffling at load (non-deterministic first state) |
+| 25 | `parseLevels` lets kotlinx's `SerializationException` through, and adds a `require` for an empty list | The library's message already names the offset and the problem; an empty file is the one bad input it would accept silently | Wrapping every error in a custom exception type |
+| 26 | `AssetLevelRepository` guards its cache with a coroutine `Mutex` | Level Select and Game can ask for levels at the same moment; the lock makes that one parse, as the brief says | No lock (rare double parse); `lazy` (cannot suspend to switch to `Dispatchers.IO`) |
 
 ---
 

@@ -1,0 +1,171 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "letters": "CAT",
+      "words": [
+        { "word": "CAT", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "ACT", "row": 0, "col": 1, "dir": "DOWN" }
+      ],
+      "bonus": []
+    },
+    {
+      "id": 2,
+      "letters": "ONW",
+      "words": [
+        { "word": "NOW", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "WON", "row": 0, "col": 2, "dir": "DOWN" }
+      ],
+      "bonus": ["OWN"]
+    },
+    {
+      "id": 3,
+      "letters": "AET",
+      "words": [
+        { "word": "EAT", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "TEA", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "ATE", "row": 2, "col": 2, "dir": "ACROSS" }
+      ],
+      "bonus": ["ETA"]
+    },
+    {
+      "id": 4,
+      "letters": "STOP",
+      "words": [
+        { "word": "STOP", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "POTS", "row": 0, "col": 3, "dir": "DOWN" },
+        { "word": "TOPS", "row": 3, "col": 0, "dir": "ACROSS" }
+      ],
+      "bonus": ["POST", "SPOT", "OPTS", "POT", "TOP", "OPT", "SOP"]
+    },
+    {
+      "id": 5,
+      "letters": "LPEA",
+      "words": [
+        { "word": "PALE", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "LEAP", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "APE", "row": 2, "col": 2, "dir": "ACROSS" }
+      ],
+      "bonus": ["PEAL", "PLEA", "LAP", "PAL", "ALE", "PEA"]
+    },
+    {
+      "id": 6,
+      "letters": "ETRA",
+      "words": [
+        { "word": "RATE", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "TEAR", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "ART", "row": 2, "col": 2, "dir": "ACROSS" },
+        { "word": "TEA", "row": 2, "col": 4, "dir": "DOWN" }
+      ],
+      "bonus": ["TARE", "RAT", "TAR", "EAT", "ATE", "ERA", "EAR", "ARE", "ETA"]
+    },
+    {
+      "id": 7,
+      "letters": "AMTE",
+      "words": [
+        { "word": "TEAM", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "EAT", "row": 0, "col": 1, "dir": "DOWN" },
+        { "word": "MATE", "row": 0, "col": 3, "dir": "DOWN" },
+        { "word": "MEAT", "row": 3, "col": 2, "dir": "ACROSS" }
+      ],
+      "bonus": ["TAME", "TEA", "ATE", "MAT", "MET", "ETA"]
+    },
+    {
+      "id": 8,
+      "letters": "ETNO",
+      "words": [
+        { "word": "NOTE", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "NET", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "TEN", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "TON", "row": 2, "col": 0, "dir": "ACROSS" }
+      ],
+      "bonus": ["TONE", "TOE", "ONE", "NOT", "EON"]
+    },
+    {
+      "id": 9,
+      "letters": "RTHAE",
+      "words": [
+        { "word": "HEART", "row": 2, "col": 0, "dir": "ACROSS" },
+        { "word": "THE", "row": 1, "col": 0, "dir": "DOWN" },
+        { "word": "HEAT", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "RATE", "row": 0, "col": 4, "dir": "DOWN" }
+      ],
+      "bonus": ["EARTH", "HATER", "HATE", "TEAR", "HARE", "HEAR", "TARE", "HAT", "EAT", "TEA", "ATE", "ART", "RAT", "TAR", "EAR", "ERA", "ARE", "HER", "ETA"]
+    },
+    {
+      "id": 10,
+      "letters": "ETSNO",
+      "words": [
+        { "word": "STONE", "row": 2, "col": 0, "dir": "ACROSS" },
+        { "word": "NEST", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "TONE", "row": 1, "col": 2, "dir": "DOWN" },
+        { "word": "ONE", "row": 0, "col": 4, "dir": "DOWN" },
+        { "word": "TEN", "row": 4, "col": 1, "dir": "ACROSS" }
+      ],
+      "bonus": ["NOTES", "ONSET", "TONES", "NOTE", "ONES", "NETS", "SENT", "TENS", "TOES", "NOSE", "TONS", "NET", "SET", "SON", "TON", "NOT", "TOE", "EON"]
+    },
+    {
+      "id": 11,
+      "letters": "NPELA",
+      "words": [
+        { "word": "PANEL", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "PLAN", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "LEAP", "row": 0, "col": 4, "dir": "DOWN" },
+        { "word": "NAP", "row": 3, "col": 0, "dir": "ACROSS" },
+        { "word": "PEN", "row": 3, "col": 2, "dir": "DOWN" }
+      ],
+      "bonus": ["PLANE", "PENAL", "LANE", "LEAN", "PALE", "PEAL", "PLEA", "NAPE", "PANE", "PAN", "PAL", "LAP", "APE", "PEA", "ALE"]
+    },
+    {
+      "id": 12,
+      "letters": "MRECA",
+      "words": [
+        { "word": "CREAM", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "RACE", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "EAR", "row": 2, "col": 2, "dir": "ACROSS" },
+        { "word": "ARC", "row": 1, "col": 4, "dir": "DOWN" },
+        { "word": "CAME", "row": 4, "col": 0, "dir": "ACROSS" }
+      ],
+      "bonus": ["ACRE", "CARE", "CRAM", "MACE", "MARE", "REAM", "ACME", "CAR", "ARM", "RAM", "ERA", "ARE", "ACE", "MAC"]
+    },
+    {
+      "id": 13,
+      "letters": "TRWAE",
+      "words": [
+        { "word": "WATER", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "WART", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "TEAR", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "RATE", "row": 0, "col": 4, "dir": "DOWN" },
+        { "word": "TAR", "row": 3, "col": 0, "dir": "ACROSS" },
+        { "word": "ATE", "row": 3, "col": 1, "dir": "DOWN" }
+      ],
+      "bonus": ["WEAR", "WARE", "TARE", "WAR", "RAW", "AWE", "WET", "EAT", "TEA", "ART", "RAT", "EAR", "ERA", "ARE", "ETA"]
+    },
+    {
+      "id": 14,
+      "letters": "EPTLA",
+      "words": [
+        { "word": "PLATE", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "PEA", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "ATE", "row": 0, "col": 2, "dir": "DOWN" },
+        { "word": "EAT", "row": 0, "col": 4, "dir": "DOWN" },
+        { "word": "ALE", "row": 2, "col": 0, "dir": "ACROSS" },
+        { "word": "LAP", "row": 2, "col": 1, "dir": "DOWN" }
+      ],
+      "bonus": ["PLEAT", "PETAL", "LEAPT", "PALE", "PEAL", "PLEA", "LEAP", "TALE", "LATE", "TEAL", "PELT", "TAPE", "PEAT", "PAT", "TAP", "APT", "PAL", "LET", "PET", "APE", "TEA", "ETA"]
+    },
+    {
+      "id": 15,
+      "letters": "ARDBE",
+      "words": [
+        { "word": "BREAD", "row": 0, "col": 0, "dir": "ACROSS" },
+        { "word": "BEARD", "row": 0, "col": 0, "dir": "DOWN" },
+        { "word": "DAB", "row": 0, "col": 4, "dir": "DOWN" },
+        { "word": "ARE", "row": 2, "col": 0, "dir": "ACROSS" },
+        { "word": "EAR", "row": 2, "col": 2, "dir": "DOWN" },
+        { "word": "DARE", "row": 4, "col": 0, "dir": "ACROSS" }
+      ],
+      "bonus": ["BARED", "BEAR", "BARE", "BRED", "DEAR", "READ", "BEAD", "DRAB", "BED", "BAD", "BAR", "ERA", "RED", "RAD"]
+    }
+  ]
+}
