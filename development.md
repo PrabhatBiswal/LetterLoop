@@ -4,8 +4,8 @@ This file is the brief for the coding session. Read all of it before writing cod
 It turns the assessment PDF ("Android Game Developer Assessment: Word Puzzle Game")
 into a concrete design, a build order, and a definition of done.
 
-**Status:** no game code written yet. The project is the untouched Android Studio
-"Empty Activity (Compose)" template.
+**Status:** milestones M0–M6 complete. See the ticked build order (section 10), the checklist
+(section 11) and the decision log (section 13).
 
 ---
 
@@ -566,7 +566,7 @@ milestone in that milestone, alongside the code they cover.
   *Check:* `./gradlew :app:assembleRelease` succeeds, the APK installs, level
   loading and saved progress still work with code shrinking on.
 
-- [ ] **M6 — Deliverables.** `README.md` covering: what the game is, how to
+- [x] **M6 — Deliverables.** `README.md` covering: what the game is, how to
   build and install, architecture and why MVVM, how the swipe gesture works, how
   level data is structured and validated, how state survives rotation and process
   death, what was deliberately left out. Copy the release APK to
@@ -616,16 +616,16 @@ State (R7):
 
 Gameplay (R1–R4, R13):
 
-- [ ] All 15 levels can be completed and each advances by itself
-- [ ] After level 15 the all-done screen shows and leads back to Level Select
+- [x] All 15 levels can be completed and each advances by itself *(release APK, fresh install, by hand with hints; levels 1–3 also by swipe in NavigationTest)*
+- [x] After level 15 the all-done screen shows and leads back to Level Select *(release APK: Level Select then showed 15/15)*
 - [x] Grid word, bonus word, already-found word and invalid word each look different *(mid-animation frames captured on device)*
 - [x] Every edge case in section 7 passes *(LetterWheelGestureTest, GameViewModelTest, GameEngineTest on device/JVM)*
 - [x] Portrait and landscape both fit on a small phone (about 360×640dp) with nothing clipped *(phone set to 720x1280 @ 320dpi; found and fixed a landscape crash)*
 
 Leaks (R6):
 
-- [ ] No ViewModel holds a Context, Activity, NavController or composable lambda
-- [ ] No coroutine is launched outside `viewModelScope` or a composable effect scope
+- [x] No ViewModel holds a Context, Activity, NavController or composable lambda *(code review)*
+- [x] No coroutine is launched outside `viewModelScope` or a composable effect scope *(code review: every `launch` is `viewModelScope` or `rememberCoroutineScope`)*
 
 ---
 
@@ -711,6 +711,7 @@ explain the choice out loud.
 | 61 | Device-test helpers read every "Level N" title and wait for idle before a swipe | While the next level slides in, both levels are on screen for about 400ms; the helpers wait it out instead of assuming one node | Disabling the level animation in tests |
 | 62 | R8 optimises all code in the release build: the template's `optimization.packageScope = androidx/kotlin/kotlinx` was removed, so AGP's default (`**`) applies | The template's scope left the app's own classes untouched, so "saved progress still works with code shrinking on" would not really test our `@Serializable` models and routes. With the full scope they are renamed and stripped (mapping shows e.g. `LevelProgress -> wl0`), and on device loading, saving, process death and cold start all still work. No extra keep rules were needed: kotlinx.serialization and Navigation ship their own | Keeping the template's library-only scope |
 | 63 | The release build type is signed with the debug signing config | An assessment build that must install straight from the APK; stated in the README. A store build would use its own upload key | Unsigned release APK (cannot be installed); committing a real keystore |
+| 64 | The release APK is committed at `release/LetterLoop.apk` | The brief's "Done" includes the playable APK in the repository; it is 1.6MB and byte-identical to `assembleRelease`'s output | Leaving it to a GitHub release (publishing is the author's step) |
 
 ---
 
