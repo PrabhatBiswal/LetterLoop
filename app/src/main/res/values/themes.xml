@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark platform theme with the navy ground as the window colour, so launch and
+         recreation never show a white frame. -->
+    <style name="Theme.LetterLoop" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ground</item>
+    </style>
+</resources>

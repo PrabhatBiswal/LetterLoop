@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same value as LoopColors.Ground. The window needs it before Compose draws, so the
+         app opens on navy instead of flashing white. -->
+    <color name="ground">#FF0E1726</color>
+</resources>
