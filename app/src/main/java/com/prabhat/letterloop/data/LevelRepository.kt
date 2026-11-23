@@ -11,6 +11,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/** levels.json holds exactly this many levels; LevelsValidationTest checks it. */
+const val LEVEL_COUNT = 15
+
 interface LevelRepository {
     /** All levels in file order. */
     suspend fun levels(): List<Level>

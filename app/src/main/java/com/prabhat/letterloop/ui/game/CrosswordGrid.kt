@@ -5,7 +5,6 @@ package com.prabhat.letterloop.ui.game
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.prabhat.letterloop.game.GameState
+import com.prabhat.letterloop.game.Level
 import com.prabhat.letterloop.ui.TestTags
 import com.prabhat.letterloop.ui.components.keycap
 import com.prabhat.letterloop.ui.theme.LoopColors
@@ -29,33 +29,38 @@ enum class TileState { Hidden, Hinted, Revealed }
 
 private val Gap = 4.dp
 
-@Composable
-fun CrosswordGrid(game: GameState, modifier: Modifier = Modifier) {
-    val level = game.level
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        // 44dp cells on the 390dp design phone (358dp of usable width), growing with the screen up
-        // to 56dp, then shrunk if the grid would not fit the space this screen gives it.
-        val preferred = (44.dp * (maxWidth / 358.dp)).coerceIn(44.dp, 56.dp)
-        val fitsWidth = (maxWidth - Gap * (level.cols - 1)) / level.cols
-        val fitsHeight = (maxHeight - Gap * (level.rows - 1)) / level.rows
-        val cell = minOf(preferred, fitsWidth, fitsHeight)
+/**
+ * The cell size for [level] in a space of [maxWidth] x [maxHeight]: 44dp on the 390dp design phone
+ * (358dp of usable width), growing with the screen up to 56dp, and shrunk if the grid would not fit.
+ */
+fun gridCellSize(level: Level, maxWidth: Dp, maxHeight: Dp): Dp {
+    val preferred = (44.dp * (maxWidth / 358.dp)).coerceIn(44.dp, 56.dp)
+    val fitsWidth = (maxWidth - Gap * (level.cols - 1)) / level.cols
+    val fitsHeight = (maxHeight - Gap * (level.rows - 1)) / level.rows
+    return minOf(preferred, fitsWidth, fitsHeight)
+}
 
-        Box(Modifier.size(cell * level.cols + Gap * (level.cols - 1), cell * level.rows + Gap * (level.rows - 1))) {
-            for (c in level.cells) {
-                val state = when (c) {
-                    in game.wordCells -> TileState.Revealed
-                    in game.hintedCells -> TileState.Hinted
-                    else -> TileState.Hidden
-                }
-                GridTile(
-                    letter = level.letterAt.getValue(c),
-                    state = state,
-                    size = cell,
-                    modifier = Modifier
-                        .offset(x = (cell + Gap) * c.col, y = (cell + Gap) * c.row)
-                        .testTag(TestTags.gridCell(c.row, c.col)),
-                )
+/** The grid's total width at [cell] size; landscape lines the top bar up with it. */
+fun gridWidth(level: Level, cell: Dp): Dp = cell * level.cols + Gap * (level.cols - 1)
+
+@Composable
+fun CrosswordGrid(game: GameState, cell: Dp, modifier: Modifier = Modifier) {
+    val level = game.level
+    Box(modifier.size(gridWidth(level, cell), cell * level.rows + Gap * (level.rows - 1))) {
+        for (c in level.cells) {
+            val state = when (c) {
+                in game.wordCells -> TileState.Revealed
+                in game.hintedCells -> TileState.Hinted
+                else -> TileState.Hidden
             }
+            GridTile(
+                letter = level.letterAt.getValue(c),
+                state = state,
+                size = cell,
+                modifier = Modifier
+                    .offset(x = (cell + Gap) * c.col, y = (cell + Gap) * c.row)
+                    .testTag(TestTags.gridCell(c.row, c.col)),
+            )
         }
     }
 }

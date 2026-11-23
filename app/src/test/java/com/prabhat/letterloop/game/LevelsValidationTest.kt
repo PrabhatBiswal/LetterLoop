@@ -2,6 +2,7 @@
 // hand-written level fails the build. A failing level is printed as an ASCII grid.
 package com.prabhat.letterloop.game
 
+import com.prabhat.letterloop.data.LEVEL_COUNT
 import com.prabhat.letterloop.data.parseLevels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,6 +22,7 @@ class LevelsValidationTest {
     @Test
     fun fileHasExactly15Levels_andEveryOnePassesTheValidator() {
         assertEquals(15, levels.size)
+        assertEquals(LEVEL_COUNT, levels.size)
         assertEquals(emptyList<String>(), LevelValidator.validateIds(levels))
         for (level in levels) {
             val errors = LevelValidator.validate(level)

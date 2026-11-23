@@ -543,7 +543,7 @@ milestone in that milestone, alongside the code they cover.
   `WheelSelectionTest`, and `LetterWheelGestureTest` on a device). Level 1 can be
   finished by hand.
 
-- [ ] **M3 — Navigation and saving.** Routes, NavHost, Home, Level Select,
+- [x] **M3 — Navigation and saving.** Routes, NavHost, Home, Level Select,
   Pause, `DataStoreProgressRepository`, `SavedStateHandle`, next-level flow,
   all-levels-done state, landscape layout.
   *Check:* every M3 test in section 14 exists and is green (`GameViewModelTest`,
@@ -598,21 +598,21 @@ adb shell settings put system user_rotation 1   # landscape; 0 = portrait
 
 Back stack (R6):
 
-- [ ] Home → Levels → Game → back opens Pause → back resumes → back opens Pause again
-- [ ] Pause → Levels, then back lands on Home (not on a second Level Select or the game)
-- [ ] Pause → Home, then back leaves the app
-- [ ] Double-tapping Play, a level, or the pause button never opens two screens
-- [ ] Finish three levels in a row, then Pause → Levels → back → Home: no stale game screens appear
-- [ ] `adb shell dumpsys activity activities` shows a single `MainActivity`
+- [x] Home → Levels → Game → back opens Pause → back resumes → back opens Pause again *(NavigationTest on SM-A047F; also by hand)*
+- [x] Pause → Levels, then back lands on Home (not on a second Level Select or the game) *(NavigationTest)*
+- [x] Pause → Home, then back leaves the app *(NavigationTest; Android 12+ moves the task to the background rather than finishing it)*
+- [x] Double-tapping Play, a level, or the pause button never opens two screens *(NavigationTest)*
+- [x] Finish three levels in a row, then Pause → Levels → back → Home: no stale game screens appear *(NavigationTest solves levels 1–3)*
+- [x] `adb shell dumpsys activity activities` shows a single `MainActivity` *(task sz=1, one Hist entry)*
 
 State (R7):
 
 - [ ] Rotate mid-level: found words, bonus count, hinted cells and wheel order are kept; no tile re-animates
-- [ ] Rotate with Pause open: Pause is still open, game state intact
-- [ ] Press Home, kill the process, reopen from recents: same level, same found words
-- [ ] Same test with Pause open, and during the level-complete celebration
-- [ ] With developer option "Don't keep activities" on, switching apps loses nothing
-- [ ] Force-stop and cold start: unlocked levels and in-progress level are remembered
+- [x] Rotate with Pause open: Pause is still open, game state intact *(by hand + StateRestorationTest)*
+- [x] Press Home, kill the process, reopen from recents: same level, same found words *(by hand; wheel order and hints also kept)*
+- [x] Same test with Pause open, and during the level-complete celebration *(by hand: restored to the complete card, then advanced)*
+- [x] With developer option "Don't keep activities" on, switching apps loses nothing *(by hand)*
+- [x] Force-stop and cold start: unlocked levels and in-progress level are remembered *(by hand)*
 
 Gameplay (R1–R4, R13):
 
@@ -681,6 +681,21 @@ explain the choice out loud.
 | 31 | `WheelGeometry` uses Compose's `Offset` for points | It is a plain x/y value class from `ui-geometry` with no runtime or state, so the functions stay pure and JVM-testable, and the gesture code needs no conversions | A separate `Point` class plus conversions |
 | 32 | The in-progress swipe word goes up through `onSelectionChange` into local state in `GameScreen`, for the preview pill | The pill sits outside the wheel; the word is short-lived UI state like the selection itself, so it never reaches the ViewModel | Putting the selection in the ViewModel's StateFlow |
 | 33 | The keycap edge is drawn below the element's bounds (into the gap) | Revealed and hidden tiles keep the same face size and line up; the 4dp grid gap holds the 3dp edge | Shrinking the face to make room for the edge inside the bounds |
+| 34 | The celebration countdown only runs while the Game screen is started (`LifecycleStartEffect` → `onScreenStarted` / `onScreenStopped`) | Android saves the screen's state when the app is backgrounded. If the ViewModel then advanced to the next level in the background, that saved state (level N, complete) would be out of date, and a kill would bring back level N with its progress already cleared. Paused, the saved state stays true; on return the countdown runs again. Verified on device: Home during the celebration, wait 4 s, kill, reopen → complete card, then the next level | Letting the timer run in the background (fails the "kill during celebration" check); also saving the current level in DataStore (more state to keep in sync) |
+| 35 | "Fresh visit" vs "rebuilt after process death" is told apart by `currentLevelId` already being in the `SavedStateHandle` | Complete saved progress means an interrupted celebration only on a rebuild. On a fresh visit from Level Select it is left over (the last level keeps its progress so the all-done card survives a kill), so it is cleared and the level replays from empty | Clearing the last level's progress immediately (all-done card lost on process death) |
+| 36 | An unknown level id falls back to level 1 | Nothing in the app can produce one; falling back keeps the screen usable with no error UI to design and test | An error state with a "back" button |
+| 37 | The ViewModel reads the route argument from `SavedStateHandle` by its property name (`levelId`) | Navigation stores route arguments under the property name, so this is a plain map lookup and ViewModel tests just build `SavedStateHandle(mapOf("levelId" to 3))` | `SavedStateHandle.toRoute<Game>()`, which goes through Navigation's Bundle-based argument decoding |
+| 38 | The navigation guard checks that the *calling* screen's entry is the current entry and RESUMED, and is used for pops too (`navigateFrom` / `popFrom`) | Stricter than "the current entry is RESUMED": after Pause is dismissed the Game entry is RESUMED straight away, so a second tap on Resume would pop the game as well | Guarding only `navigate` calls |
+| 39 | Pause gets the Game entry's `GameViewModel` (`getBackStackEntry<Game>()`) for its "Level N · X of Y" line | One source of truth; nothing copied into route arguments that could go stale | Passing found/total as `Pause` route arguments |
+| 40 | Home reuses `LevelSelectViewModel` | Home shows exactly the progress that ViewModel already exposes (next level, solved count); a second ViewModel would duplicate it | A separate `HomeViewModel` |
+| 41 | Progress writes run inside `viewModelScope` but wrapped in `withContext(NonCancellable)` | A write that has started finishes even if the player leaves the screen in that instant, and no coroutine is launched outside `viewModelScope` (section 11) | An application-wide scope for writes |
+| 42 | `LevelSelectViewModel` shares its state with `SharingStarted.Eagerly` | Ready by the first frame, keeps following DataStore while the screen's entry exists (so returning always shows new unlocks), and tests need no collector | `WhileSubscribed(5000)` |
+| 43 | Pause: the platform's window dim is turned off and the design's scrim drawn by us; Levels and Home sit side by side | Exact scrim colour from the design; side by side keeps the card within a 360dp-tall landscape screen | Default dialog dim; stacked buttons (clipped in landscape) |
+| 44 | Home has its own landscape layout (logo beside the Play area) | The portrait column does not fit 360dp of height | Making Home scroll |
+| 45 | Icons are Material Design icon paths saved as vector drawables in `res/drawable` (Apache 2.0, credited in the README) | Section 3's list does not include `material-icons-core`; ten small XML files are explainable and add no dependency | Adding `material-icons-core` |
+| 46 | `NavigationTest` "back on Home" accepts the activity being stopped *or* destroyed | Since Android 12, back on a root launcher activity moves the task to the background instead of finishing it; both mean the player has left the app | Asserting DESTROYED (fails on Android 12+ by platform design) |
+| 47 | Background rings are drawn by `drawBehind` on the element they centre on (the logo's L, the wheel), with the wheel section at `zIndex(-1)` and `clipToBounds` on the screen root | No coordinates to measure or pass around; draw order alone puts the rings under everything else | Measuring the anchor with `onGloballyPositioned` and drawing in the root |
+| 48 | DataStore is created with `ReplaceFileCorruptionHandler { emptyPreferences() }` | A progress file that cannot be read at all starts empty instead of crashing on every launch | Default handler (throws `CorruptionException`) |
 
 ---
 

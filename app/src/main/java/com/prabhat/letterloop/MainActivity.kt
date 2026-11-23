@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.prabhat.letterloop.ui.game.GameScreen
+import com.prabhat.letterloop.ui.navigation.LetterLoopNavHost
 import com.prabhat.letterloop.ui.theme.LetterLoopTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             LetterLoopTheme {
-                GameScreen()
+                LetterLoopNavHost()
             }
         }
     }
