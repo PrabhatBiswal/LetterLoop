@@ -4,7 +4,7 @@ This file is the brief for the coding session. Read all of it before writing cod
 It turns the assessment PDF ("Android Game Developer Assessment: Word Puzzle Game")
 into a concrete design, a build order, and a definition of done.
 
-**Status:** milestones M0–M6 complete. See the ticked build order (section 10), the checklist
+**Status:** milestones M0–M7 complete. See the ticked build order (section 10), the checklist
 (section 11) and the decision log (section 13).
 
 ---
@@ -381,125 +381,112 @@ The PDF asks for "production-ready, not a prototype". Budget real time for this.
 
 ### Theme
 
-The visual design is fixed. The mockups are on the design canvas "LetterLoop App
-UI": https://claude.ai/artifact/G5H1bVWapPqm17qzFnMp1n (private to the author;
-ask them for screenshots if you cannot open it). Everything needed to build it
-is written below. Sizes are in dp for a 390dp-wide phone; scale with the screen.
+Revised on 2026-11-23, after the first build was reviewed on a phone (Decision
+log 65). The first design (midnight navy, marigold keycaps, background rings,
+26–36sp type) read as generic; this section describes what is built now.
 
-The look: a solid midnight-navy ground, chunky marigold "keycap" tiles and
-buttons with a hard darker bottom edge instead of a soft shadow, dark text on
-marigold, and faint concentric rings behind the wheel (the "loop").
+The look: a casual word game set in scenery. Sky, sun or moon, clouds or stars
+and three rows of hills are drawn on a `Canvas` (`ui/components/Scene.kt`, no
+image files). White letter tiles and buttons sit on top, each with a hard darker
+bottom edge ("keycap") instead of a blurred shadow.
 
-Colours — define each once in `Color.kt`; no hard-coded colours in screens:
+**Chapters.** Levels are grouped into three chapters by wheel size, taken from
+the level data. A chapter is a `Scene`: its sky, hills and one accent colour.
+
+| Scene | Levels | Sky (top → bottom) | Hills (far → near) | Accent (edge) |
+|---|---|---|---|---|
+| Meadow | 3 letters | `#1E88E5` → `#A8E0FF` | `#8FD694` `#55B96A` `#2F9A57` | `#F4511E` (`#B93A12`) |
+| Dusk | 4 letters | `#4A2A7A` → `#FF9E6B` | `#8E4A8C` `#63357A` `#3F245E` | `#E91E63` (`#AD1457`) |
+| Night | 5 letters | `#0B1638` → `#27407A` | `#21456B` `#173557` `#0F2742` | `#7C5CFF` (`#5A3FD1`) |
+
+The accent is used for found grid words, selected wheel letters, the swipe line
+and solved level tiles. Game screens show their level's scene; Home and Level
+Select show the scene of the level the player has reached.
+
+Fixed colours, each defined once in `Color.kt` (no hard-coded colours in screens):
 
 | Token | Hex | Used for |
 |---|---|---|
-| Ground | `#0E1726` | Screen background |
-| Surface | `#18243A` | Wheel disc, cards, round icon buttons, preview pill |
-| EmptyTile | `#1F2E48` | Hidden grid cells, secondary buttons, progress track |
-| Outline | `#2C3F60` | 1.5dp inner border on surfaces and hidden cells |
-| Marigold | `#FFB627` | Revealed tiles, selected letters, swipe line, primary button, progress |
-| MarigoldEdge | `#C9820A` | Hard bottom edge under marigold shapes |
-| OnMarigold | `#201400` | Text and icons on marigold |
-| Teal | `#3DD6C3` | Bonus words: pill, star icon, counter badge (edge `#1E9E8F`, text `#04201C`) |
-| Coral | `#FF6F61` | Invalid word pill (edge `#C2463A`, text `#2A0906`) |
-| Cream | `#F6F1E7` | Main text and icons |
-| Muted | `#A9B8D0` | Secondary text |
-| LockedTile | `#152033` | Locked level tile (border `#223149`, content `#8FA0BC`) |
+| Ink | `#1F2540` | Text and icons on white |
+| Muted | `#6C7389` | Secondary text on white |
+| Tile | `#FFFFFF` | Tiles, cards, the wheel, text on colour |
+| TileEdge | `#C5CDE0` | Bottom edge under white tiles and buttons |
+| Glass / GlassLine | white 30% / 70% | Hidden grid cells and their outline |
+| Locked | `#E9ECF3` | Locked level tiles, secondary button |
+| Play / PlayEdge | `#2FBF71` / `#1E8F52` | Primary button |
+| Gold | `#FFC233` | Bonus words |
+| Wrong | `#E5484D` | Invalid word |
 
-- Dark look only. No dynamic (wallpaper) colour and no light theme; the game
-  must look the same on every device.
-- Font: **Fredoka** (Google Fonts, Open Font License), bundled in `res/font`,
-  weights 400, 500, 600, 700. Record the licence in the README. Tile and wheel
-  letters are weight 600 capitals.
-- The "keycap" edge is a solid offset shape drawn under the element (3dp under
-  grid tiles, 4dp under wheel letters, 5–6dp under buttons), not a blurred
-  elevation shadow.
-- Background rings: thin circles about 2dp wide every 48dp, white at about 3.5%
-  opacity, centred on the wheel (on the logo on Home). Draw them on `Canvas`.
-  Level Select has a plain ground.
+- No dynamic (wallpaper) colour and no light/dark switch; the game looks the
+  same on every device. Status and navigation bar icons are always white.
+- Font: **Fredoka** (Open Font License), bundled in `res/font`. Tile and wheel
+  letters are weight 600 capitals. Titles are 20–24sp, labels 14–17sp.
 - Touch targets at least 48dp. Icon buttons have content descriptions.
-- Leave the system status bar alone; content starts below the safe-area inset.
+- The scenery is one layer behind the whole `NavHost` (`SceneBackdrop`). Each
+  screen wraps itself in `SceneScreen`, which reports its scene and provides the
+  accent through `LocalScene`.
 
 ### Screens
 
-**Home.** The logo is a small crossword and is left-aligned, not centred:
-"LETTER" runs across in six 48dp tiles (5dp gaps, 11dp radius) and "LOOP" runs
-down from the shared first L. The four LOOP tiles are marigold keycaps; E, T,
-T, E, R are Surface tiles with an Outline border and cream letters (28sp, weight
-600). There is no separate text wordmark; give the logo the content description
-"LetterLoop". The tagline "Swipe the letters. / Fill the grid." (two lines,
-23sp, weight 500, muted) sits to the right of the LOOP column, under LETTER.
-Background rings are centred on the L tile. At the bottom: full-width "Play"
-primary button (64dp high, 20dp radius, play icon), then a row "Next up: Level
-N" / "N of 15 solved" over an 8dp progress bar.
+**Home.** The logo is a small crossword, centred in the sky: "LETTER" across in
+six 48dp white keycap tiles and "LOOP" down from the shared L in the accent
+colour. Its content description is "LetterLoop". At the bottom, over the hills:
+a dark see-through pill "Level N is next · N of 15 solved", then the green
+"Play" button (220dp wide).
 
-**Level Select.** Header: round back button, "Levels" 28sp, "8/15" muted. No
-progress bar here. Levels are grouped by wheel size under left-aligned section
-labels "3 letters", "4 letters", "5 letters" (16sp, weight 500, muted); the
-groups come from each level's letter count in the data, not from hard-coded
-ranges. Each group is a 4-column grid of tiles, 72dp high, 16dp radius, with no
-caption on the tiles:
-- solved: marigold keycap, level number 30sp, small check mark top-right;
-- current: Surface tile with a 3dp marigold ring and a soft outer marigold glow,
-  number in cream;
-- locked: LockedTile with a lock icon above a small number.
-Footer text, left-aligned: "Solve a level to unlock the next one."
+**Level Select.** Header: round back button, "Levels" 20sp, "5/15". One white
+card per chapter with a banner in that chapter's sky colours (name and "N
+letters"), then its levels as 52dp tiles: solved = accent keycap with a white
+number; current = white keycap with an accent border and number; locked = flat
+grey with a lock icon. The cards scroll if they do not fit.
 
-**Game (portrait).** Top bar 56dp: round pause button (48dp) left, "Level N"
-26sp centre, and on the right a two-line found counter: "2/5" (18sp, weight
-600) over the label "words" (13sp, muted). Grid centred in the space below:
-cells 44dp with 4dp gaps and 10dp radius, capped at about 56dp on larger
-screens. Hidden cells are EmptyTile with an Outline border so the crossword
-shape shows from the start; revealed cells are marigold keycaps with a 26sp
-dark letter; a hinted cell is EmptyTile with a marigold border and marigold
-letter. Above the wheel, the word preview pill (48dp high, fully rounded,
-Surface with a 2dp marigold border, 26sp letters spaced 5dp apart). Wheel: a
-280dp Surface disc with a 2dp Outline border; letters 36sp weight 600 in cream;
-a touched letter becomes a 64dp marigold circle with a 4dp edge and scales to
-1.12; the swipe line is marigold, 12dp wide, round caps and joins. Three 52dp
-round Surface buttons sit in the corners of the wheel area: hint top-right,
-shuffle bottom-left, bonus bottom-right with a teal star and a teal count badge.
+**Game (portrait).** Top bar 48dp: round pause button, "Level N" 20sp in white,
+found counter "2/5". Grid centred below: cells 44–56dp with 4dp gaps. Hidden
+cells are see-through glass so the crossword's shape shows from the start;
+found cells are accent keycaps with a white letter; a hinted cell is a white
+tile with an accent letter. Above the wheel, the word preview pill (40dp, white,
+20sp letters). Wheel: a white disc (92% opaque) up to 280dp; letters 34sp weight
+600; a touched letter becomes a 60dp accent circle; the swipe line is the accent
+colour, 10dp wide, round caps and joins. Three round white buttons in the
+corners of the wheel area: hint top-right, shuffle bottom-left, bonus
+bottom-right with a gold star and a count badge once a bonus word is found.
 
-**Game (landscape).** Two columns: left has the grid centred, with the top bar
-above it at the same width as the grid so the pause button and counter line up
-with the grid's edges; right (about 320dp wide) has the preview pill on top, a 240dp wheel,
-and the same three buttons in its corners. 44dp side padding for cut-outs.
+**Game (landscape).** Two columns: the grid on the left with the top bar at the
+grid's width; on the right (at most 320dp) the preview pill, the wheel (at most
+240dp) and the same three buttons. Side padding scales up to 44dp for cut-outs.
 
-**Pause.** Dialog over the dimmed game (scrim about 80% of `#060A12`): a Surface
-card, 28dp radius, "Paused" 36sp, "Level N · X of Y words found" muted, then
-Resume (primary, 60dp), Levels and Home (secondary, 56dp, each with an icon),
-and "Your progress is saved." in small muted text.
+**Pause.** Dialog over the dimmed game: a white card, 24dp radius, "Paused"
+24sp, "Level N · X of Y words found", then Resume (primary) and Levels / Home
+(secondary) side by side.
 
-**Level complete.** The grid stays fully revealed, the wheel and preview pill
-fade out completely, confetti in marigold, teal, coral and cream. A Surface
-card slides in where the wheel was, with left-aligned content and no icon
-badge: "Level N complete" 32sp with "complete" in marigold; "All N words found,
-plus M bonus:" muted, followed by the bonus words found as teal-bordered chips
-(when no bonus words were found, the line is just "All N words found" and there
-are no chips); an 8dp bar that fills during the 1.5 s wait; and "Next up: Level
-N+1". After level 15 the same card says all levels are done and
-shows a "Back to levels" primary button instead of the bar.
+**Level complete.** The grid stays revealed, the wheel and preview pill fade
+out, confetti falls. A white card slides in where the wheel was: "Level N
+complete" 24sp; "All N words found, plus M bonus:" followed by the bonus words
+as gold chips (no chips when none were found); a 6dp accent bar that fills
+during the 1.5 s wait; "Next: Level N+1". After level 15 the card says that was
+the last level and shows a "Back to levels" button instead of the bar.
 
-**Bonus words sheet.** Opened by the bonus button: a Surface sheet titled "Bonus
-words" with the teal count badge and the found words as chips (EmptyTile with a
-teal border).
+**Bonus words sheet.** Opened by the bonus button: a white sheet titled "Bonus
+words" with the count badge and the found words as gold chips.
 
 ### Required animations
 
 | Moment | Animation |
 |---|---|
-| Screen change | Fade + short slide, about 300 ms, with matching pop (back) transitions |
+| Screen change | "Fade through": old content fades out (120 ms), new content fades in while growing from 0.94 (260 ms); going back it settles from 1.05. The scenery behind does not move |
+| Chapter change | The scenery cross-fades to the new scene (500 ms) |
+| Scenery | Clouds drift, stars twinkle (one 90 s looping value read only while drawing) |
+| Home | Logo tiles drop in one after another with a bounce; the Play button pulses |
 | Pause dialog | Scale + fade in/out |
-| Letter touched | Spring scale to 1.12, marigold circle fades in |
-| Valid grid word | Its tiles pop in one after another (about 60 ms stagger, slight overshoot); short praise banner; success haptic |
-| Bonus word | Preview pill turns teal and flies/shrinks to the bonus button; button bumps; counter ticks up |
-| Invalid word | Preview pill turns coral and shakes sideways (about 300 ms); wheel letters settle back |
-| Already found | That word's tiles pulse once; pill turns grey (Outline colour) |
-| Hint | The revealed tile pops in, drawn in a dimmer "hinted" style |
+| Letter touched | Spring scale to 1.12, accent circle fades in |
+| Valid grid word | Its tiles pop in one after another (about 60 ms stagger, slight overshoot); short praise pill; success haptic |
+| Bonus word | Preview pill turns gold and flies/shrinks to the bonus button; button bumps; counter ticks up |
+| Invalid word | Preview pill turns red and shakes sideways (about 300 ms) |
+| Already found | That word's tiles pulse once; pill turns grey |
+| Hint | The revealed tile pops in, drawn in the "hinted" style |
 | Shuffle | Letters glide to their new positions |
 | Level complete | Confetti drawn on `Canvas` + "Level complete" card, then the next level slides in |
-| Level Select | Level buttons appear with a small stagger; locked ones show a lock; current level highlighted |
+| Level Select | Level tiles appear with a small stagger; the current level pulses; a locked level shakes when tapped |
 | Any button | Scales to about 0.96 while pressed |
 
 ### Animation rules
@@ -571,6 +558,10 @@ milestone in that milestone, alongside the code they cover.
   level data is structured and validated, how state survives rotation and process
   death, what was deliberately left out. Copy the release APK to
   `release/LetterLoop.apk`. Run the full section 11 checklist one last time.
+- [x] **M7 — Visual redesign.** After reviewing the first build on a phone:
+  section 9's scenery look, chapters, fade-through transitions and the extra
+  animations; new launcher icon; README, screenshots and release APK updated.
+  All JVM and device tests re-run.
 
 Git (decided by the author): run `git init` at the start of M0, then make
 **one commit per milestone**, after that milestone's checks pass. Commit message
@@ -711,7 +702,14 @@ explain the choice out loud.
 | 61 | Device-test helpers read every "Level N" title and wait for idle before a swipe | While the next level slides in, both levels are on screen for about 400ms; the helpers wait it out instead of assuming one node | Disabling the level animation in tests |
 | 62 | R8 optimises all code in the release build: the template's `optimization.packageScope = androidx/kotlin/kotlinx` was removed, so AGP's default (`**`) applies | The template's scope left the app's own classes untouched, so "saved progress still works with code shrinking on" would not really test our `@Serializable` models and routes. With the full scope they are renamed and stripped (mapping shows e.g. `LevelProgress -> wl0`), and on device loading, saving, process death and cold start all still work. No extra keep rules were needed: kotlinx.serialization and Navigation ship their own | Keeping the template's library-only scope |
 | 63 | The release build type is signed with the debug signing config | An assessment build that must install straight from the APK; stated in the README. A store build would use its own upload key | Unsigned release APK (cannot be installed); committing a real keystore |
-| 64 | The release APK is committed at `release/LetterLoop.apk` | The brief's "Done" includes the playable APK in the repository; it is 1.6MB and byte-identical to `assembleRelease`'s output | Leaving it to a GitHub release (publishing is the author's step) |
+| 64 | The release APK is committed at `release/LetterLoop.apk` | The brief's "Done" includes the playable APK in the repository; it is about 1.5MB and byte-identical to `assembleRelease`'s output | Leaving it to a GitHub release (publishing is the author's step) |
+| 65 | The first visual design (navy ground, marigold keycaps, background rings, 26–36sp type) was replaced after seeing it on a phone; section 9 now describes a scenery look with moderate type sizes | On a real device the first design read as a generic template; a plain "printed crossword" version tried next read as too dull for a game. The mechanics, navigation and tests did not change | Keeping a design that had only been judged as a mock-up |
+| 66 | Scenery is drawn in code on a `Canvas` (`Scene.kt`): gradient sky, sun or moon, clouds or stars, three hill curves. One looping value drives clouds and star twinkle and is read only in the draw lambda | No image assets to license or scale; it fits any screen size and both orientations; a frame is a redraw, never a recomposition | Bundled background photos (APK size, licences, cropping per screen shape) |
+| 67 | Three chapters (Meadow, Dusk, Night) come from each level's letter count via `sceneFor()`; a `Scene` carries its own accent colour, read through the `LocalScene` composition local | The chapter is derived from level data rather than level-number ranges, so adding levels needs no UI change. The composition local stops the accent being threaded through every tile and wheel parameter | Hard-coded "levels 1–3 are Meadow"; passing the colour down every call |
+| 68 | The scenery is a single `SceneBackdrop` behind the `NavHost`; each screen reports its scene with `onScene` from a `LaunchedEffect`, and the choice is kept in `rememberSaveable` | When every screen drew its own scenery and the whole screen scaled, transitions showed the window colour at the edges and a flash while the new screen loaded. With one fixed layer only the content animates | A background per screen |
+| 69 | Screen transitions are "fade through": the old content fades out in 120 ms, then the new content fades in over 260 ms with a small scale | Two screens are never half-visible on top of each other, which is what made the earlier fade + slide look busy | Cross-fade or slide of both screens at once |
+| 70 | Level Select is a scrolling `Column` of chapter cards with `FlowRow`s, not a lazy grid | Fifteen tiles are cheap to lay out at once, and every tile exists for tests and accessibility without scrolling it into composition | `LazyVerticalGrid` (needed span headers and offered nothing for 15 items) |
+| 71 | Looping animations (scenery, Play pulse, current-level pulse) use `rememberInfiniteTransition` | The Compose test rule's idle check does not wait for infinite transitions, so `waitForIdle` still returns; all 21 device tests pass with them running | Hand-rolled `while (true)` animation loops, which would keep tests from going idle |
 
 ---
 

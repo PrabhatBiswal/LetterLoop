@@ -8,6 +8,13 @@ game moves on to the next level by itself. There are 15 levels.
 The mechanics follow the brief's reference game; the name, look, colours and all level content
 are original.
 
+<p>
+  <img src="docs/screenshots/home.png" width="180" alt="Home screen">
+  <img src="docs/screenshots/levels.png" width="180" alt="Level select with three chapters">
+  <img src="docs/screenshots/game-swipe.png" width="180" alt="Swiping a word on the wheel">
+  <img src="docs/screenshots/game-found.png" width="180" alt="A found word filled into the grid">
+</p>
+
 - **Play it:** install [`release/LetterLoop.apk`](release/LetterLoop.apk) (Android 7.0+, API 24).
 - **Design brief and decision log:** [`development.md`](development.md), section 13 explains every
   non-obvious choice.
@@ -57,7 +64,7 @@ game/       Level, GameState, GameEngine (submit, hint, completion), LevelValida
 data/       LevelRepository (+ parseLevels), ProgressRepository (DataStore), LevelProgress
 ui/navigation  Routes, NavHost and the navigation guard
 ui/home, ui/levels, ui/game    Screens and their ViewModels
-ui/components  Keycap look, buttons, background rings
+ui/components  Scenery (Scene.kt), buttons, keycap edge
 ui/theme       Colour tokens, Fredoka typography
 ```
 
@@ -100,7 +107,7 @@ enabled flag, so a shuffle or the level-complete celebration cancels a swipe in 
 
 **Drawing.** The finger position lives in a state object read *only* inside the `Canvas` draw
 lambda, so a touch move is a redraw, never a recomposition, and the line stays glued to the
-finger. The line is a marigold `Path` through the selected letters to the finger, not animated.
+finger. The line is a `Path` in the chapter's accent colour through the selected letters to the finger, not animated.
 
 The ViewModel only ever hears about finished words; the in-progress selection is short-lived UI
 state that stays in the composable.
@@ -167,6 +174,22 @@ harmless. Pause pops back to existing entries; it never navigates forward to Hom
 
 ---
 
+## Look and animation
+
+The scenery behind every screen (sky, sun or moon, clouds or stars, hills) is drawn in code on a
+`Canvas`; there are no image files. Levels fall into three chapters by wheel size, read from the
+level data: Meadow (3 letters), Dusk (4) and Night (5). Each chapter has its own scenery and one
+accent colour for found words, selected letters and the swipe line.
+
+The scenery is a single layer behind the `NavHost`, so it stays still while screens change on top
+of it. Screens "fade through": the old content fades out, then the new content fades in with a
+small scale. Other motion: the logo drops in tile by tile, the Play button and the current level
+pulse, found tiles pop in one after another, a bonus word flies to the bonus button, an invalid
+word shakes, shuffled letters glide, and confetti falls when a level is complete. Every animated
+value is read in the draw or layer phase, so a frame is a redraw and not a recomposition.
+
+---
+
 ## Testing
 
 ```bash
@@ -203,7 +226,9 @@ screen in both orientations. See the checklist in `development.md` section 11.
 
 - Sound, coins or any currency, ads, analytics, daily puzzles and a settings screen (out of scope).
 - A dictionary: bonus words are listed per level, keeping the APK small and results deterministic.
-- A light theme and wallpaper-based colours: the game looks the same on every device.
+- Generated or endless levels: the 15 levels are written by hand. The production route would be a
+  bundled open word list and an on-device generator whose output is checked by `LevelValidator`.
+- Light/dark switching and wallpaper-based colours: the game looks the same on every device.
 - Saving the in-progress swipe (see above).
 - Hilt/Koin, Room, MVI frameworks, multiple modules: two repositories and three screens do not
   need them.

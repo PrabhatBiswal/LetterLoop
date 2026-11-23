@@ -30,6 +30,7 @@ import com.prabhat.letterloop.game.GameState
 import com.prabhat.letterloop.game.Level
 import com.prabhat.letterloop.game.PlacedWord
 import com.prabhat.letterloop.ui.TestTags
+import com.prabhat.letterloop.ui.components.LocalScene
 import com.prabhat.letterloop.ui.components.keycap
 import com.prabhat.letterloop.ui.theme.LoopColors
 import kotlinx.coroutines.delay
@@ -39,7 +40,7 @@ enum class TileState { Hidden, Hinted, Revealed }
 private val Gap = 4.dp
 
 /**
- * The cell size for [level] in a space of [maxWidth] x [maxHeight]: 44dp on the 390dp design phone
+ * The cell size for [level] in a space of [maxWidth] x [maxHeight]: 44dp on a 390dp-wide phone
  * (358dp of usable width), growing with the screen up to 56dp, and shrunk if the grid would not fit.
  */
 fun gridCellSize(level: Level, maxWidth: Dp, maxHeight: Dp): Dp {
@@ -97,9 +98,10 @@ private fun GridTile(
     pulseKey: Long?,
     modifier: Modifier,
 ) {
-    // The design is 44dp tiles with a 10dp radius and 26sp letters; keep those proportions.
-    val shape = RoundedCornerShape(size * (10f / 44f))
-    val fontSize = with(LocalDensity.current) { (size * (26f / 44f)).toSp() }
+    val shape = RoundedCornerShape(size * 0.2f)
+    val scene = LocalScene.current
+    // Half the tile, set in dp so the letter fits whatever the phone's font-size setting.
+    val fontSize = with(LocalDensity.current) { (size * 0.55f).toSp() }
     val shown = state != TileState.Hidden
 
     // Starts from the tile's current state: a tile already revealed when the screen is created
@@ -126,19 +128,21 @@ private fun GridTile(
         modifier
             .size(size)
             .graphicsLayer { scaleX = pulse.value; scaleY = pulse.value }
-            // The hidden tile is always underneath, so the crossword's shape shows from the start.
-            .background(LoopColors.EmptyTile, shape)
-            .border(1.5.dp, LoopColors.Outline, shape)
+            // The see-through hidden tile is always underneath, so the crossword's shape shows from the start.
+            .background(LoopColors.Glass, shape)
+            .border(1.5.dp, LoopColors.GlassLine, shape)
             // Tests (and screen readers) read the tile's state; a hidden tile exposes no letter.
             .semantics(mergeDescendants = true) { stateDescription = state.name },
         contentAlignment = Alignment.Center,
     ) {
         if (shown) {
-            val face = if (state == TileState.Revealed) {
-                Modifier.keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 3.dp, shape)
+            // Revealed: a tile in the scene's accent colour with a darker bottom edge.
+            // Hinted: a plain white tile with the letter in the accent colour.
+            val revealed = state == TileState.Revealed
+            val face = if (revealed) {
+                Modifier.keycap(scene.accent, scene.accentEdge, 3.dp, shape)
             } else {
-                // Hinted: the dimmer style, a marigold outline and letter on the empty tile.
-                Modifier.border(2.dp, LoopColors.Marigold, shape)
+                Modifier.background(LoopColors.Tile, shape)
             }
             Box(
                 Modifier
@@ -153,7 +157,7 @@ private fun GridTile(
             ) {
                 Text(
                     text = letter.toString(),
-                    color = if (state == TileState.Revealed) LoopColors.OnMarigold else LoopColors.Marigold,
+                    color = if (revealed) LoopColors.Tile else scene.accent,
                     fontSize = fontSize,
                     fontWeight = FontWeight.SemiBold,
                 )

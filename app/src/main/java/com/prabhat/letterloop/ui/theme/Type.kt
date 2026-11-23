@@ -1,5 +1,5 @@
 // The app's only typeface: Fredoka (SIL Open Font License), bundled in res/font.
-// Screens set their own sizes from the design spec; this file only makes Fredoka the default.
+// Screens set their own sizes; this file only makes Fredoka the default.
 package com.prabhat.letterloop.ui.theme
 
 import androidx.compose.material3.Typography
@@ -18,7 +18,7 @@ val Fredoka = FontFamily(
 )
 
 // MaterialTheme uses bodyLarge as the default style for every Text, so setting the font
-// here is enough. No lineHeight on purpose: a fixed one would clip the large 26–36sp text.
+// here is enough. No lineHeight on purpose: a fixed one would clip the larger titles.
 val Typography = Typography(
-    bodyLarge = TextStyle(fontFamily = Fredoka, fontWeight = FontWeight.Normal, fontSize = 16.sp),
+    bodyLarge = TextStyle(fontFamily = Fredoka, fontWeight = FontWeight.Normal, fontSize = 15.sp),
 )

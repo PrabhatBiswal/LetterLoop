@@ -45,12 +45,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import com.prabhat.letterloop.ui.TestTags
+import com.prabhat.letterloop.ui.components.LocalScene
 import com.prabhat.letterloop.ui.components.keycap
 import com.prabhat.letterloop.ui.theme.LoopColors
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-/** The design's sizes are given for a 280dp wheel; everything scales from this. */
+/** Sizes below are given for a 280dp wheel; everything scales from this. */
 private val DesignDiameter = 280.dp
 
 @Composable
@@ -151,16 +152,12 @@ fun LetterWheel(
                 diameter.toPx() / 2f,
             )
         }
-        val keySize = 64.dp * scale
+        val keySize = 60.dp * scale
+        val scene = LocalScene.current
 
         Canvas(Modifier.fillMaxSize()) {
-            val outlineWidth = 2.dp.toPx()
-            drawCircle(LoopColors.Surface, radius = size.minDimension / 2f)
-            drawCircle(
-                LoopColors.Outline,
-                radius = size.minDimension / 2f - outlineWidth / 2f,
-                style = Stroke(outlineWidth),
-            )
+            // A white disc, slightly see-through so the hills behind it still show.
+            drawCircle(LoopColors.Tile.copy(alpha = 0.92f), radius = size.minDimension / 2f)
             // Reading `finger` here (draw phase), and nowhere in composition, is what makes a
             // move only redraw. The line is not animated: it must follow the finger exactly.
             val fingerNow = finger
@@ -173,8 +170,8 @@ fun LetterWheel(
                 }
                 drawPath(
                     path,
-                    LoopColors.Marigold,
-                    style = Stroke(width = 12.dp.toPx() * scale, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                    scene.accent,
+                    style = Stroke(width = 10.dp.toPx() * scale, cap = StrokeCap.Round, join = StrokeJoin.Round),
                 )
             }
         }
@@ -208,10 +205,11 @@ private fun letterIdentities(letters: String): List<String> =
 
 @Composable
 private fun LetterKey(letter: Char, selected: Boolean, size: Dp, scale: Float, modifier: Modifier) {
-    // Sizes in dp converted to sp, so the letter always fits its 64dp circle whatever the
+    // Sizes in dp converted to sp, so the letter always fits its circle whatever the
     // phone's font-size setting (Decision log #28).
-    val fontSize = with(LocalDensity.current) { (36.dp * scale).toSp() }
-    // Touched: spring up to 1.12 and fade the marigold circle in; released: settle back.
+    val fontSize = with(LocalDensity.current) { (34.dp * scale).toSp() }
+    val scene = LocalScene.current
+    // Touched: spring up to 1.12 and fade the accent circle in; released: settle back.
     val keyScale by animateFloatAsState(
         if (selected) 1.12f else 1f,
         spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow),
@@ -231,11 +229,11 @@ private fun LetterKey(letter: Char, selected: Boolean, size: Dp, scale: Float, m
             Modifier
                 .matchParentSize()
                 .graphicsLayer { alpha = circleAlpha }
-                .keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 4.dp * scale, CircleShape),
+                .keycap(scene.accent, scene.accentEdge, 3.dp * scale, CircleShape),
         )
         Text(
             text = letter.toString(),
-            color = if (selected) LoopColors.OnMarigold else LoopColors.Cream,
+            color = if (selected) LoopColors.Tile else LoopColors.Ink,
             fontSize = fontSize,
             fontWeight = FontWeight.SemiBold,
         )

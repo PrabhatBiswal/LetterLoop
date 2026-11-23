@@ -1,5 +1,6 @@
-// Level Select: every level as a tile, grouped by wheel size, showing solved / current / locked.
-// The groups come from each level's letter count in the data, not from hard-coded ranges.
+// Level Select: one card per chapter (Meadow, Dusk, Night), each holding its levels as tiles that
+// show solved / current / locked. The chapters come from each level's letter count in the data,
+// not from hard-coded ranges.
 package com.prabhat.letterloop.ui.levels
 
 import androidx.compose.animation.core.Animatable
@@ -12,7 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,24 +23,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -53,9 +50,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.prabhat.letterloop.R
 import com.prabhat.letterloop.ui.TestTags
-import com.prabhat.letterloop.ui.components.RoundIconButton
+import com.prabhat.letterloop.ui.components.IconOnlyButton
+import com.prabhat.letterloop.ui.components.Scene
+import com.prabhat.letterloop.ui.components.SceneScreen
 import com.prabhat.letterloop.ui.components.keycap
 import com.prabhat.letterloop.ui.components.rememberPressScale
+import com.prabhat.letterloop.ui.components.rememberPulse
+import com.prabhat.letterloop.ui.components.sceneFor
 import com.prabhat.letterloop.ui.theme.LoopColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -64,72 +65,62 @@ import kotlinx.coroutines.launch
 fun LevelSelectScreen(
     onBack: () -> Unit,
     onLevelClick: (Int) -> Unit,
+    onScene: (Scene) -> Unit = {},
     viewModel: LevelSelectViewModel = viewModel(factory = LevelSelectViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // The scenery of the chapter the player has reached, the same as on Home.
+    val reached = state.levels.firstOrNull { it.status == LevelStatus.Current } ?: state.levels.lastOrNull()
 
-    Column(
+    SceneScreen(
+        reached?.let { sceneFor(it.letterCount) },
+        onScene,
         Modifier
             .fillMaxSize()
-            .background(LoopColors.Ground)
-            .safeDrawingPadding()
-            .padding(horizontal = 20.dp)
             .testTag(TestTags.LEVEL_SELECT_SCREEN),
     ) {
-        Row(
+        Column(
             Modifier
-                .fillMaxWidth()
-                .height(64.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(horizontal = 16.dp),
         ) {
-            RoundIconButton(
-                icon = R.drawable.ic_back,
-                contentDescription = "Back",
-                onClick = onBack,
-                modifier = Modifier.testTag(TestTags.LEVELS_BACK_BUTTON),
-            )
-            Spacer(Modifier.width(14.dp))
-            Text("Levels", fontSize = 28.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (state.levels.isNotEmpty()) {
-                Text("${state.solvedCount}/${state.levels.size}", fontSize = 18.sp, color = LoopColors.Muted)
-            }
-        }
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
-            modifier = Modifier.weight(1f),
-        ) {
-            // groupBy keeps the order levels appear in the file: 3, 4, then 5 letters.
-            state.levels.groupBy { it.letterCount }.forEach { (letterCount, tiles) ->
-                item(span = { GridItemSpan(maxLineSpan) }, key = "header_$letterCount") {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconOnlyButton(
+                    icon = R.drawable.ic_back,
+                    contentDescription = "Back",
+                    onClick = onBack,
+                    modifier = Modifier.testTag(TestTags.LEVELS_BACK_BUTTON),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text("Levels", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = LoopColors.Tile, modifier = Modifier.weight(1f))
+                if (state.levels.isNotEmpty()) {
                     Text(
-                        "$letterCount letters",
-                        fontSize = 16.sp,
+                        "${state.solvedCount}/${state.levels.size}",
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Medium,
-                        color = LoopColors.Muted,
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
-                }
-                items(tiles, key = { it.id }) { tile ->
-                    LevelTileButton(
-                        tile = tile,
-                        // A small stagger: each tile appears 25ms after the one before it.
-                        appearDelayMillis = (tile.id - 1) * 25L,
-                        onOpen = { onLevelClick(tile.id) },
+                        color = LoopColors.Tile,
+                        modifier = Modifier.padding(end = 8.dp),
                     )
                 }
             }
-            if (state.levels.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }, key = "footer") {
-                    Text(
-                        "Solve a level to unlock the next one.",
-                        fontSize = 15.sp,
-                        color = LoopColors.Muted,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
+
+            // Fifteen tiles is few enough to lay out all at once; no lazy list needed.
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                // groupBy keeps the order levels appear in the file: 3, 4, then 5 letters.
+                state.levels.groupBy { it.letterCount }.forEach { (letterCount, tiles) ->
+                    ChapterCard(sceneFor(letterCount), letterCount, tiles, onLevelClick)
                 }
             }
         }
@@ -137,17 +128,54 @@ fun LevelSelectScreen(
 }
 
 @Composable
-private fun LevelTileButton(tile: LevelTile, appearDelayMillis: Long, onOpen: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+private fun ChapterCard(scene: Scene, letterCount: Int, tiles: List<LevelTile>, onLevelClick: (Int) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(LoopColors.Tile),
+    ) {
+        // The banner is a strip of the chapter's own sky.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(Brush.horizontalGradient(listOf(scene.skyTop, scene.skyBottom)))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(scene.name, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = LoopColors.Tile)
+            Spacer(Modifier.width(8.dp))
+            Text("$letterCount letters", fontSize = 14.sp, color = LoopColors.Tile)
+        }
+        FlowRow(
+            Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            tiles.forEach { tile ->
+                LevelTileButton(
+                    tile = tile,
+                    scene = scene,
+                    // A small stagger: each tile appears 25ms after the one before it.
+                    appearDelayMillis = (tile.id - 1) * 25L,
+                    onOpen = { onLevelClick(tile.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LevelTileButton(tile: LevelTile, scene: Scene, appearDelayMillis: Long, onOpen: () -> Unit) {
+    // Solved: a tile in the chapter's accent colour. Current: a white tile with an accent border
+    // that pulses. Locked: a flat grey tile with a lock.
+    val shape = RoundedCornerShape(12.dp)
     val look = when (tile.status) {
-        LevelStatus.Completed -> Modifier.keycap(LoopColors.Marigold, LoopColors.MarigoldEdge, 5.dp, shape)
+        LevelStatus.Completed -> Modifier.keycap(scene.accent, scene.accentEdge, 3.dp, shape)
         LevelStatus.Current -> Modifier
-            .marigoldGlow()
-            .background(LoopColors.Surface, shape)
-            .border(3.dp, LoopColors.Marigold, shape)
-        LevelStatus.Locked -> Modifier
-            .background(LoopColors.LockedTile, shape)
-            .border(1.5.dp, LoopColors.LockedBorder, shape)
+            .keycap(LoopColors.Tile, LoopColors.TileEdge, 3.dp, shape)
+            .border(2.5.dp, scene.accent, shape)
+        LevelStatus.Locked -> Modifier.background(LoopColors.Locked, shape)
     }
     val statusText = when (tile.status) {
         LevelStatus.Completed -> "solved"
@@ -165,17 +193,18 @@ private fun LevelTileButton(tile: LevelTile, appearDelayMillis: Long, onOpen: ()
     val scope = rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
     val pressScale by rememberPressScale(interactionSource)
+    // Only the level to play next "breathes".
+    val pulse = if (tile.status == LevelStatus.Current) rememberPulse(max = 1.08f).value else 1f
 
     Box(
         Modifier
-            .fillMaxWidth()
-            .height(72.dp)
+            .size(52.dp)
             // All animated values are read here, in the layer, so they only redraw the tile.
             .graphicsLayer {
                 val grow = 0.85f + 0.15f * appear.value
                 alpha = appear.value
-                scaleX = grow * pressScale
-                scaleY = grow * pressScale
+                scaleX = grow * pressScale * pulse
+                scaleY = grow * pressScale * pulse
                 translationX = shake.value.dp.toPx()
             }
             .then(look)
@@ -203,38 +232,15 @@ private fun LevelTileButton(tile: LevelTile, appearDelayMillis: Long, onOpen: ()
             .testTag(TestTags.levelTile(tile.id)),
         contentAlignment = Alignment.Center,
     ) {
-        when (tile.status) {
-            LevelStatus.Completed -> {
-                Text("${tile.id}", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = LoopColors.OnMarigold)
-                Icon(
-                    painterResource(R.drawable.ic_check),
-                    contentDescription = null,
-                    tint = LoopColors.OnMarigold,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .size(16.dp),
-                )
-            }
-            LevelStatus.Current ->
-                Text("${tile.id}", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = LoopColors.Cream)
-            LevelStatus.Locked -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(painterResource(R.drawable.ic_lock), contentDescription = null, tint = LoopColors.LockedContent, modifier = Modifier.size(20.dp))
-                Text("${tile.id}", fontSize = 13.sp, color = LoopColors.LockedContent)
-            }
+        if (tile.status == LevelStatus.Locked) {
+            Icon(painterResource(R.drawable.ic_lock), contentDescription = null, tint = LoopColors.Muted, modifier = Modifier.size(18.dp))
+        } else {
+            Text(
+                "${tile.id}",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (tile.status == LevelStatus.Completed) LoopColors.Tile else scene.accent,
+            )
         }
-    }
-}
-
-// A soft glow: a few rounded rectangles around the tile, each larger and fainter than the last.
-private fun Modifier.marigoldGlow(): Modifier = drawBehind {
-    for (i in 1..4) {
-        val spread = (i * 2).dp.toPx()
-        drawRoundRect(
-            color = LoopColors.Marigold.copy(alpha = 0.14f - i * 0.03f),
-            topLeft = Offset(-spread, -spread),
-            size = Size(size.width + spread * 2, size.height + spread * 2),
-            cornerRadius = CornerRadius(16.dp.toPx() + spread),
-        )
     }
 }

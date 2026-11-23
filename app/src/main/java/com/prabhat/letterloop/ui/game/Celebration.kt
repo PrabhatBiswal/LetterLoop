@@ -10,7 +10,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,14 +31,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.prabhat.letterloop.ui.TestTags
 import com.prabhat.letterloop.ui.components.PrimaryButton
+import androidx.compose.ui.text.font.FontWeight
+import com.prabhat.letterloop.ui.components.LocalScene
+import com.prabhat.letterloop.ui.components.Meadow
+import com.prabhat.letterloop.ui.components.Dusk
+import com.prabhat.letterloop.ui.components.Night
 import com.prabhat.letterloop.ui.theme.LoopColors
 import kotlin.math.sin
 import kotlin.random.Random
@@ -48,41 +47,32 @@ import kotlin.random.Random
 @Composable
 fun LevelCompleteCard(state: GameUiState, onBackToLevels: () -> Unit, modifier: Modifier = Modifier) {
     val game = state.game ?: return
-    val shape = RoundedCornerShape(28.dp)
     Column(
         modifier
             .fillMaxWidth()
-            .background(LoopColors.Surface, shape)
-            .border(1.5.dp, LoopColors.Outline, shape)
+            .background(LoopColors.Tile, RoundedCornerShape(24.dp))
             // Scrolls only if a very short screen cannot fit the whole card.
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
+            .padding(20.dp)
             .testTag(TestTags.LEVEL_COMPLETE_CARD),
     ) {
-        Text(
-            text = buildAnnotatedString {
-                append("Level ${state.levelId} ")
-                withStyle(SpanStyle(color = LoopColors.Marigold)) { append("complete") }
-            },
-            fontSize = 32.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(8.dp))
+        Text("Level ${state.levelId} complete", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(4.dp))
         val words = game.level.words.size
         val bonus = game.foundBonus
         Text(
             text = if (bonus.isEmpty()) "All $words words found" else "All $words words found, plus ${bonus.size} bonus:",
-            fontSize = 17.sp,
+            fontSize = 14.sp,
             color = LoopColors.Muted,
         )
         if (bonus.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             BonusChips(bonus)
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
         if (state.phase == GamePhase.AllLevelsDone) {
-            Text("That was the last level. Every level is solved!", fontSize = 17.sp)
-            Spacer(Modifier.height(16.dp))
+            Text("That was the last level.", fontSize = 14.sp)
+            Spacer(Modifier.height(12.dp))
             PrimaryButton(
                 text = "Back to levels",
                 onClick = onBackToLevels,
@@ -93,29 +83,26 @@ fun LevelCompleteCard(state: GameUiState, onBackToLevels: () -> Unit, modifier: 
         } else {
             // Fills over the 1.5 second wait. The value is read while drawing, so it only redraws.
             val fill = remember { Animatable(0f) }
+            val accent = LocalScene.current.accent
             LaunchedEffect(Unit) {
                 fill.animateTo(1f, tween(GameViewModel.CELEBRATION_MILLIS.toInt(), easing = LinearEasing))
             }
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .background(LoopColors.EmptyTile, CircleShape)
+                    .height(6.dp)
+                    .background(LoopColors.Locked, RoundedCornerShape(3.dp))
                     .drawBehind {
-                        drawRoundRect(
-                            LoopColors.Marigold,
-                            size = Size(size.width * fill.value, size.height),
-                            cornerRadius = CornerRadius(size.height / 2),
-                        )
+                        drawRoundRect(accent, size = Size(size.width * fill.value, size.height), cornerRadius = CornerRadius(size.height / 2))
                     },
             )
-            Spacer(Modifier.height(12.dp))
-            Text("Next up: Level ${state.levelId + 1}", fontSize = 17.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(8.dp))
+            Text("Next: Level ${state.levelId + 1}", fontSize = 14.sp, color = LoopColors.Muted)
         }
     }
 }
 
-/** Found bonus words as teal-bordered chips. Also used by the bonus words sheet. */
+/** Found bonus words as gold chips. Also used by the bonus words sheet. */
 @Composable
 fun BonusChips(words: Collection<String>, modifier: Modifier = Modifier) {
     FlowRow(
@@ -126,19 +113,18 @@ fun BonusChips(words: Collection<String>, modifier: Modifier = Modifier) {
         words.forEach { word ->
             Text(
                 text = word,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
                 letterSpacing = 1.sp,
                 modifier = Modifier
-                    .background(LoopColors.EmptyTile, CircleShape)
-                    .border(1.5.dp, LoopColors.Teal, CircleShape)
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .background(LoopColors.Gold, RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 5.dp),
             )
         }
     }
 }
 
-private val ConfettiColors = listOf(LoopColors.Marigold, LoopColors.Teal, LoopColors.Coral, LoopColors.Cream)
+private val ConfettiColors = listOf(LoopColors.Gold, LoopColors.Play, LoopColors.Tile, Meadow.accent, Dusk.accent, Night.accent)
 private const val CONFETTI_SECONDS = 2.4f
 /** Fall acceleration, in screen heights per second squared. */
 private const val GRAVITY = 0.5f

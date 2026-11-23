@@ -1,38 +1,24 @@
-// The colour tokens from the approved design (development.md section 9).
-// Every colour in the app is defined once here so screens never hard-code a hex value.
-// They live in an object so names like `Surface` do not clash with Compose's own Surface.
+// The app's fixed colours. The colours that change from chapter to chapter (sky, hills and the
+// accent used for found words) live in components/Scene.kt; everything else is defined once here
+// so screens never hard-code a hex value.
 package com.prabhat.letterloop.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
 object LoopColors {
-    val Ground = Color(0xFF0E1726)
-    val Surface = Color(0xFF18243A)
-    val EmptyTile = Color(0xFF1F2E48)
-    val Outline = Color(0xFF2C3F60)
+    val Ink = Color(0xFF1F2540)       // text and icons on white
+    val Muted = Color(0xFF6C7389)     // secondary text on white
+    val Tile = Color(0xFFFFFFFF)      // tiles, cards, the wheel; also text on colour
+    val TileEdge = Color(0xFFC5CDE0)  // the bottom edge under white tiles and buttons
+    val Glass = Color(0x4DFFFFFF)     // empty grid tiles: 30% white over the scenery
+    val GlassLine = Color(0xB3FFFFFF) // their outline: 70% white
+    val Locked = Color(0xFFE9ECF3)    // locked level tiles, the secondary button
 
-    val Marigold = Color(0xFFFFB627)
-    val MarigoldEdge = Color(0xFFC9820A)
-    val OnMarigold = Color(0xFF201400)
+    val Play = Color(0xFF2FBF71)      // the primary button
+    val PlayEdge = Color(0xFF1E8F52)
+    val Gold = Color(0xFFFFC233)      // bonus words
+    val Wrong = Color(0xFFE5484D)     // an invalid word
 
-    val Teal = Color(0xFF3DD6C3)
-    val TealEdge = Color(0xFF1E9E8F)
-    val OnTeal = Color(0xFF04201C)
-
-    val Coral = Color(0xFFFF6F61)
-    val CoralEdge = Color(0xFFC2463A)
-    val OnCoral = Color(0xFF2A0906)
-
-    val Cream = Color(0xFFF6F1E7)
-    val Muted = Color(0xFFA9B8D0)
-
-    val LockedTile = Color(0xFF152033)
-    val LockedBorder = Color(0xFF223149)
-    val LockedContent = Color(0xFF8FA0BC)
-
-    // Pause dialog scrim: #060A12 at about 80%.
-    val Scrim = Color(0xCC060A12)
-
-    // Background "loop" rings: white at about 3.5% opacity.
-    val Ring = Color(0x09FFFFFF)
+    // Behind the Pause dialog and the bonus sheet.
+    val Scrim = Color(0x99101730)
 }

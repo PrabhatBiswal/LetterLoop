@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Same value as LoopColors.Ground. The window needs it before Compose draws, so the
-         app opens on navy instead of flashing white. -->
-    <color name="ground">#FF0E1726</color>
+    <!-- Same value as Meadow.skyTop in Scene.kt. The window needs it before Compose draws. -->
+    <color name="sky">#FF1E88E5</color>
 </resources>

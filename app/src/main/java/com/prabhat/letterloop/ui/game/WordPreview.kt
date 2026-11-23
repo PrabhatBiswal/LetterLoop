@@ -1,7 +1,7 @@
-// The pill above the wheel. While swiping it shows the word being built. After a submission it
-// plays that word's feedback: a praise pill for a grid word, a teal pill that flies into the bonus
-// button, a coral shake for an invalid word, grey for a word already found. Its 48dp of height is
-// always reserved, so the wheel never jumps.
+// The word box above the wheel. While swiping it shows the word being built. After a submission
+// it plays that word's feedback: praise in the scene's accent colour for a grid word, a gold box
+// that flies into the bonus button, a red shake for an invalid word, grey for a word already found. Its 48dp of
+// height is always reserved, so the wheel never jumps.
 package com.prabhat.letterloop.ui.game
 
 import androidx.compose.animation.core.Animatable
@@ -10,9 +10,7 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -36,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.prabhat.letterloop.game.SubmitResult
 import com.prabhat.letterloop.ui.TestTags
+import com.prabhat.letterloop.ui.components.LocalScene
 import com.prabhat.letterloop.ui.theme.LoopColors
 import kotlinx.coroutines.delay
 
@@ -70,7 +69,7 @@ fun WordPreview(swipeWord: String, feedback: Feedback?, flight: FlightPath, modi
     ) {
         when {
             // A new swipe always wins: animations never block input.
-            swipeWord.isNotEmpty() -> Pill(swipeWord, LoopColors.Surface, LoopColors.Cream, border = LoopColors.Marigold)
+            swipeWord.isNotEmpty() -> Pill(swipeWord, LoopColors.Tile, LoopColors.Ink)
             // key(): each new feedback id starts its animation from the beginning.
             feedback != null -> key(feedback.id) { FeedbackPill(feedback, flight) }
         }
@@ -115,10 +114,10 @@ private fun FeedbackPill(feedback: Feedback, flight: FlightPath) {
     }
 
     val (background, content, text) = when (feedback.result) {
-        SubmitResult.GridWord -> Triple(LoopColors.Marigold, LoopColors.OnMarigold, Praise[(feedback.id % Praise.size).toInt()])
-        SubmitResult.BonusWord -> Triple(LoopColors.Teal, LoopColors.OnTeal, feedback.word)
-        SubmitResult.Invalid -> Triple(LoopColors.Coral, LoopColors.OnCoral, feedback.word)
-        SubmitResult.AlreadyFound -> Triple(LoopColors.Outline, LoopColors.Cream, feedback.word)
+        SubmitResult.GridWord -> Triple(LocalScene.current.accent, LoopColors.Tile, Praise[(feedback.id % Praise.size).toInt()])
+        SubmitResult.BonusWord -> Triple(LoopColors.Gold, LoopColors.Ink, feedback.word)
+        SubmitResult.Invalid -> Triple(LoopColors.Wrong, LoopColors.Tile, feedback.word)
+        SubmitResult.AlreadyFound -> Triple(LoopColors.TileEdge, LoopColors.Ink, feedback.word)
     }
     Pill(
         text,
@@ -146,17 +145,16 @@ private fun FeedbackPill(feedback: Feedback, flight: FlightPath) {
 }
 
 @Composable
-private fun Pill(text: String, background: Color, content: Color, modifier: Modifier = Modifier, border: Color? = null) {
+private fun Pill(text: String, background: Color, content: Color, modifier: Modifier = Modifier) {
     Box(
         modifier
-            .fillMaxHeight()
+            .height(40.dp)
             .background(background, CircleShape)
-            .then(if (border != null) Modifier.border(2.dp, border, CircleShape) else Modifier)
-            .padding(horizontal = 22.dp)
+            .padding(horizontal = 18.dp)
             .testTag(TestTags.WORD_PREVIEW)
             .semantics(mergeDescendants = true) {},
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = content, fontSize = 26.sp, letterSpacing = 5.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = content, fontSize = 20.sp, letterSpacing = 3.sp, fontWeight = FontWeight.SemiBold)
     }
 }

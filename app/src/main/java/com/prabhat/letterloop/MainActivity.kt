@@ -14,8 +14,8 @@ import com.prabhat.letterloop.ui.theme.LetterLoopTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // The app is always dark, so ask for light status/navigation bar icons even when the
-        // phone is in light mode; the default "auto" style would draw dark icons on our navy.
+        // Every screen has a coloured sky behind the status bar, so ask for white status and
+        // navigation bar icons whatever the phone's own light/dark setting is.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

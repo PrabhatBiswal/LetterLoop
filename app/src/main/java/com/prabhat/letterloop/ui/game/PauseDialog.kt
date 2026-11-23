@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,19 +38,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
-import com.prabhat.letterloop.R
 import com.prabhat.letterloop.ui.TestTags
 import com.prabhat.letterloop.ui.components.PrimaryButton
 import com.prabhat.letterloop.ui.components.SecondaryButton
+import androidx.compose.ui.text.font.FontWeight
 import com.prabhat.letterloop.ui.theme.LoopColors
 
 @Composable
 fun PauseDialog(state: GameUiState, onResume: () -> Unit, onLevels: () -> Unit, onHome: () -> Unit) {
-    // Turn off the window's own grey dim; we draw the design's scrim colour ourselves.
+    // Turn off the window's own grey dim; we draw our own scrim colour, so it can fade with the card.
     val window = (LocalView.current.parent as? DialogWindowProvider)?.window
     SideEffect { window?.setDimAmount(0f) }
 
@@ -102,24 +100,22 @@ private fun PauseCard(
     onHome: () -> Unit,
     modifier: Modifier,
 ) {
-    val shape = RoundedCornerShape(28.dp)
     Column(
         modifier
-            .widthIn(max = 420.dp)
+            .widthIn(max = 320.dp)
             .fillMaxWidth()
-            .background(LoopColors.Surface, shape)
-            .border(1.5.dp, LoopColors.Outline, shape)
+            .background(LoopColors.Tile, RoundedCornerShape(24.dp))
             // Scrolls only if a very short landscape screen cannot fit the card.
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
+            .padding(20.dp)
             .testTag(TestTags.PAUSE_DIALOG),
     ) {
-        Text("Paused", fontSize = 36.sp, fontWeight = FontWeight.SemiBold)
+        Text("Paused", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
         val game = state.game
         if (game != null) {
             Text(
                 "Level ${state.levelId} · ${game.foundWords.size} of ${game.level.words.size} words found",
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 color = LoopColors.Muted,
             )
         }
@@ -127,19 +123,16 @@ private fun PauseCard(
         PrimaryButton(
             text = "Resume",
             onClick = onResume,
-            height = 60.dp,
-            icon = R.drawable.ic_play,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(TestTags.RESUME_BUTTON),
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
         // Side by side, so the card still fits a short landscape screen.
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SecondaryButton(
                 text = "Levels",
                 onClick = onLevels,
-                icon = R.drawable.ic_levels,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(TestTags.PAUSE_LEVELS_BUTTON),
@@ -147,18 +140,10 @@ private fun PauseCard(
             SecondaryButton(
                 text = "Home",
                 onClick = onHome,
-                icon = R.drawable.ic_home,
                 modifier = Modifier
                     .weight(1f)
                     .testTag(TestTags.PAUSE_HOME_BUTTON),
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            "Your progress is saved.",
-            fontSize = 14.sp,
-            color = LoopColors.Muted,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
     }
 }
