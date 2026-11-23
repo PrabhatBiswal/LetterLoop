@@ -536,7 +536,7 @@ milestone in that milestone, alongside the code they cover.
   *Check:* every M1 test in section 14 exists and is green (`GameEngineTest`,
   `LevelValidatorTest`, `LevelsValidationTest`, `LevelParsingTest`).
 
-- [ ] **M2 — Playable game screen.** `GameViewModel`, `GameUiState`,
+- [x] **M2 — Playable game screen.** `GameViewModel`, `GameUiState`,
   `CrosswordGrid`, `LetterWheel`, `WheelGeometry`, word preview. Launch straight
   into level 1 for now. No fancy animation yet, but the swipe line must work.
   *Check:* every M2 test in section 14 exists and is green (`WheelGeometryTest`,
@@ -674,6 +674,13 @@ explain the choice out loud.
 | 24 | Levels 1 and 4 are the brief's samples verbatim; the other levels store their wheel letters out of word order. Bonus lists are generous | The first wheel should not spell the answer clockwise. With no dictionary, every common word the letters make should count, or real words get rejected | Storing letters in answer order and shuffling at load (non-deterministic first state) |
 | 25 | `parseLevels` lets kotlinx's `SerializationException` through, and adds a `require` for an empty list | The library's message already names the offset and the problem; an empty file is the one bad input it would accept silently | Wrapping every error in a custom exception type |
 | 26 | `AssetLevelRepository` guards its cache with a coroutine `Mutex` | Level Select and Game can ask for levels at the same moment; the lock makes that one parse, as the brief says | No lock (rare double parse); `lazy` (cannot suspend to switch to `Dispatchers.IO`) |
+| 27 | A system cancel is told apart from a real lift by `change.isConsumed` | When Android cancels a touch stream, Compose delivers a synthetic lift that is already consumed; a real lift arrives unconsumed. So "cancel → submit nothing" needs no extra callback. Proven on device: removing the check makes the cancel test fail | Treating every lift as a submit; a timeout heuristic |
+| 28 | Wheel and grid letter sizes are dp converted to sp | The letters sit inside fixed-size circles and tiles; with the phone's font size turned up, sp text would spill out of them. Labels, the preview pill and other text still use sp and scale normally | Plain sp everywhere |
+| 29 | The wheel's `pointerInput` is keyed on the letters and the enabled flag | A shuffle (possible with a second finger) or the start of the celebration restarts the gesture coroutine, which cancels the swipe; its `finally` clears the selection. No stale indices can survive a letter change | Checking for changed letters inside the gesture loop |
+| 30 | Hits along a segment are ordered by where each letter centre projects onto the segment | Hit circles never overlap, so this order equals the order the finger enters them; it is one dot product instead of solving a quadratic for entry points | Exact circle-entry points; point-only hit testing (skips letters on fast swipes) |
+| 31 | `WheelGeometry` uses Compose's `Offset` for points | It is a plain x/y value class from `ui-geometry` with no runtime or state, so the functions stay pure and JVM-testable, and the gesture code needs no conversions | A separate `Point` class plus conversions |
+| 32 | The in-progress swipe word goes up through `onSelectionChange` into local state in `GameScreen`, for the preview pill | The pill sits outside the wheel; the word is short-lived UI state like the selection itself, so it never reaches the ViewModel | Putting the selection in the ViewModel's StateFlow |
+| 33 | The keycap edge is drawn below the element's bounds (into the gap) | Revealed and hidden tiles keep the same face size and line up; the 4dp grid gap holds the 3dp edge | Shrinking the face to make room for the edge inside the bounds |
 
 ---
 
